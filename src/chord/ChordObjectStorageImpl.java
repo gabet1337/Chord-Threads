@@ -121,6 +121,11 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
             yield();
         }
         chordServer.stopServer();
+        
+        //wait until we have handled all incoming messages
+        while (!_incomingMessages.isEmpty()) {
+            yield();
+        }
         chordClient.stopClient();
 
     }
