@@ -43,7 +43,10 @@ public class Message implements Serializable {
     }
 
     public String toString() {
-        String result = "ORIGIN: " + origin +  "\n" +
+        String result = 
+                "ID: " + ID + "\n" +
+                "ORIGIN: " + origin +  "\n" +
+                "SENDER: " + sender + "\n" +
                 "RECEIVER: " + receiver + "\n" +
                 "TYPE: " + getTypeString() + "\n" +
                 "KEY: " + key + "\n" +

@@ -18,6 +18,8 @@ public class ChordClient implements Runnable {
 
     private boolean _isRunning;
 
+    private Object _joiningLock = new Object();
+
     public ChordClient(BlockingQueue<Message> incoming, BlockingQueue<Message> outgoing, 
             Map<Integer, ResponseHandler> responseHandlers , ChordObjectStorage node) {
         _incomingMessages = incoming;
@@ -65,18 +67,16 @@ public class ChordClient implements Runnable {
 
     private void handleJoin(Message message) {
         //THERE WILL BE SOME SYNCHRONIZATION HERE AT SOME POINT TO HANDLE MULTIPLE JOINS
-
-        System.out.println("here1");
-        InetSocketAddress sender = message.sender;
-        InetSocketAddress result = _nodeReference.lookup(message);
-        System.out.println(result);
-        System.out.println("ROFL");
-        message.sender = _nodeReference.getChordName();
-        if (message.payload == null)
-            message.payload = result;
-        message.receiver = sender;
-        message.type = Message.RESULT;
-        enqueueMessage(message);
+        synchronized(_joiningLock) {
+            InetSocketAddress sender = message.sender;
+            InetSocketAddress result = _nodeReference.lookup(message);
+            message.sender = _nodeReference.getChordName();
+            if (message.payload == null)
+                message.payload = result;
+            message.receiver = sender;
+            message.type = Message.RESULT;
+            enqueueMessage(message);
+        }
     }
 
     private void handleLookup(Message message) {
@@ -85,27 +85,35 @@ public class ChordClient implements Runnable {
     }
 
     private void handleSetPredecessor(Message message) {
-        _nodeReference.setPredecessor((InetSocketAddress) message.payload);
+        synchronized(_joiningLock) {
+            _nodeReference.setPredecessor((InetSocketAddress) message.payload);
+        }
     }
 
     private void handleSetSuccessor(Message message) {
-        _nodeReference.setSuccessor((InetSocketAddress) message.payload);
+        synchronized(_joiningLock) {
+            _nodeReference.setSuccessor((InetSocketAddress) message.payload);
+        }
     }
 
     private void handleGetPredecessor(Message message) {
-        message.receiver = message.sender;
-        message.sender = _nodeReference.getChordName();
-        message.payload = _nodeReference.pred();
-        message.type = Message.RESULT;
-        enqueueMessage(message);
+        synchronized(_joiningLock) {
+            message.receiver = message.sender;
+            message.sender = _nodeReference.getChordName();
+            message.payload = _nodeReference.pred();
+            message.type = Message.RESULT;
+            enqueueMessage(message);
+        }
     }
 
     private void handleGetSuccessor(Message message) {
-        message.receiver = message.sender;
-        message.sender = _nodeReference.getChordName();
-        message.payload = _nodeReference.succ();
-        message.type = Message.RESULT;
-        enqueueMessage(message);
+        synchronized(_joiningLock) {
+            message.receiver = message.sender;
+            message.sender = _nodeReference.getChordName();
+            message.payload = _nodeReference.succ();
+            message.type = Message.RESULT;
+            enqueueMessage(message);
+        }
     }
 
     private void handleGetObject(Message message) {

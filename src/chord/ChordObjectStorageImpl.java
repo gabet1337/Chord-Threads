@@ -20,7 +20,6 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     private InetSocketAddress _connectedAt;
 
     private Object _connectedLock = new Object();
-    private Object _joiningLock = new Object();
 
     private BlockingQueue<Message> _incomingMessages = new LinkedBlockingQueue<Message>();
     private BlockingQueue<Message> _outgoingMessages = new LinkedBlockingQueue<Message>();
@@ -130,6 +129,14 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     public Object get(String name) {
         return null;
     }
+    
+    public String toString() {
+        String result = "NODEID: " + _myKey + "\n" +
+                        "ADDR: " + _myName + "\n" +
+                        "SUCC: " + succ() + "\n" +
+                        "PRED: " + pred();
+        return result;
+    }
 
     public void run() {
         ChordServer chordServer = new ChordServer(_incomingMessages, _port);
@@ -198,6 +205,13 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
                 getChordName(), getChordName(), succ(), _myName);
         _outgoingMessages.add(setSuccessor);
         _outgoingMessages.add(setPredecessor);
+    }
+    
+    public String getGraphViz() {
+        String result = "";
+        result += ChordHelpers.keyOfObject(getChordName()) + " -> " + ChordHelpers.keyOfObject(succ()) + "\n";
+        result += ChordHelpers.keyOfObject(getChordName()) + " -> " + ChordHelpers.keyOfObject(pred()) + "\n";
+        return result;
     }
 
 }
