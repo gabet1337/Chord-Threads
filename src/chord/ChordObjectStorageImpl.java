@@ -85,9 +85,6 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     public void leaveGroup() {
         System.out.println("Shutting down!");
         synchronized(_connectedLock) {
-            _chordServer.stopServer();
-            _chordClient.stopClient();
-            _chordMessenger.stopSender();
             _isConnected = false;
         }
 
@@ -222,6 +219,23 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
                 e.printStackTrace();
             }
         }
+        
+        Message msg1 = new Message(Message.SET_PREDECESSOR, _myKey, getChordName(),
+                getChordName(), succ(), pred());
+        Message msg2 = new Message(Message.SET_SUCCESSOR, _myKey, getChordName(),
+                getChordName(), pred(), succ());
+        _outgoingMessages.add(msg1);
+        _outgoingMessages.add(msg2);
+        
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e1) {
+            e1.printStackTrace();
+        }
+        
+        _chordServer.stopServer();
+        _chordClient.stopClient();
+        _chordMessenger.stopSender();
         try {
             server.join();
             client.join();

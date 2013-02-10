@@ -37,13 +37,15 @@ public class ChordObjectStorageTest3 {
                 Thread.sleep(1000);
             } catch (InterruptedException __) {
             }
-            server[i] = new ChordObjectStorageImpl(-1);	    
+            server[i] = new ChordObjectStorageImpl(-1);
             server[i].joinGroup(server[(i+9)%10].getChordName(),40010+i);
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException __) {
             }
         }
+        
+        System.out.println("OK half way!");
 
         for (int j=1; j<100; j++) {
             String name = "Name " + j;
