@@ -70,9 +70,13 @@ public class ChordHelpers {
      * 2^31".
      */
     public static boolean inBetween(int low, int high, int candidate) {
-        if (low==high) return false;
-        if ((candidate >= low) && (candidate < high)) return true;
-        return false;
+        System.out.println("Is: " + low + " < " + candidate + " < " + high);
+        boolean answer = false;
+        if (low==high) answer = false;
+        if ((candidate >= low) && (candidate < high)) answer = true;
+        if (low > high) answer = true;
+        System.out.println(answer);
+        return answer;
     } 
 
     /**
@@ -111,7 +115,7 @@ public class ChordHelpers {
         }
         return null;
     }
-    
+
     public static ServerSocket getServerSocket(int port) {
         try {
             ServerSocket result = new ServerSocket();

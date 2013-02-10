@@ -29,13 +29,14 @@ public class ChordObjectStorageTest1 {
         for (int i=1; i<10; i++) {
             server[i] = new ChordObjectStorageImpl(-1);
             server[i].joinGroup(server[i-1].getChordName(),40000+i);
-            while (!server[0].isConnected()) {
+            while (!server[i].isConnected()) {
                 try {
                     Thread.sleep(100);
                 } catch (InterruptedException __) {
                 }
             }
         }
+        System.out.println("OK!");
 
         for (int j=1; j<100; j++) {
             String name = "Name " + j;

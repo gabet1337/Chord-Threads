@@ -2,7 +2,6 @@ package chord;
 
 import interfaces.*;
 
-import java.io.*;
 import java.net.*;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -33,18 +32,6 @@ public class ChordClient implements Runnable {
 
         while (_isRunning) {
 
-            //First send any queued messages:
-            while (!_outgoingMessages.isEmpty()) {
-                Message msg = _outgoingMessages.poll();
-                Socket s = getSocket(msg.receiver);
-                sendMessage(s, msg);
-                try {
-                    s.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-
             Message message = getMessageToHandle();
             if (message != null) {
                 System.out.println(message);
@@ -68,14 +55,7 @@ public class ChordClient implements Runnable {
     private void handleJoin(Message message) {
         //THERE WILL BE SOME SYNCHRONIZATION HERE AT SOME POINT TO HANDLE MULTIPLE JOINS
         synchronized(_joiningLock) {
-            InetSocketAddress sender = message.sender;
-            InetSocketAddress result = _nodeReference.lookup(message);
-            message.sender = _nodeReference.getChordName();
-            if (message.payload == null)
-                message.payload = result;
-            message.receiver = sender;
-            message.type = Message.RESULT;
-            enqueueMessage(message);
+            ((ChordObjectStorageImpl)_nodeReference).lookupNoReturn(message);
         }
     }
 
@@ -127,10 +107,6 @@ public class ChordClient implements Runnable {
     private void handleResult(Message message) {
         ResponseHandler handler = _responseHandlers.get(message.ID);
         handler.setMessage(message);
-        //        if (!message.origin.equals(_nodeReference.getChordName())) {
-        //            message.receiver = _nodeReference.pred();
-        //            enqueueMessage(message);
-        //        }
     }
 
     private Message getMessageToHandle() {
@@ -138,32 +114,10 @@ public class ChordClient implements Runnable {
         return message;
     }
 
-    private void sendMessage(Socket socket, Message msg) {
-        try {
-            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-            oos.writeObject(msg);
-            oos.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private Socket getSocket(InetSocketAddress receiver) {
-        Socket result = new Socket();
-        try {
-            result.connect(receiver);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return result;
-    }
+    
 
     private void enqueueMessage(Message message) {
-        try {
-            _outgoingMessages.put(message);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        _outgoingMessages.add(message);
     }
 
     public void stopClient() {

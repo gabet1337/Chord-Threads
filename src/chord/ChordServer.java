@@ -20,7 +20,7 @@ public class ChordServer implements Runnable {
 
     public void run() {
         while (_isRunning) {
-            System.out.println("Waiting for a connection");
+            System.out.println("ID: " + _serverSocket + " waiting for connection");
             Socket socket = waitForConnection();
             Message msg = receiveMessage(socket);
             _incomingMessages.add(msg);

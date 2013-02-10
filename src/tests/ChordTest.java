@@ -17,7 +17,8 @@ public class ChordTest {
         //testReceive();
         //testLookup1Node();
         //testJoin1Node();
-        testJoin2Node();
+        //testJoin2Node();
+        testJoin10Nodes();
     }
 
     private static void testReceive() throws InterruptedException, IOException {
@@ -54,7 +55,7 @@ public class ChordTest {
         System.out.println(node.toString());
         System.out.println(node1.toString());
     }
-    
+
     private static void testJoin2Node() throws InterruptedException {
         ArrayList<ChordObjectStorageImpl> nodes = new ArrayList<ChordObjectStorageImpl>();
         ChordObjectStorageImpl node = new ChordObjectStorageImpl(-1);
@@ -65,7 +66,7 @@ public class ChordTest {
         ChordObjectStorageImpl node1 = new ChordObjectStorageImpl(-1);
         nodes.add(node1);
         node1.joinGroup(node.getChordName(), 40001);
-        
+        Thread.sleep(200);
         ChordObjectStorageImpl node2 = new ChordObjectStorageImpl(-1);
         nodes.add(node2);
         node2.joinGroup(node.getChordName(), 40002);
@@ -75,7 +76,33 @@ public class ChordTest {
         System.out.println(node2.toString());
         System.out.println(graph(nodes));
     }
-    
+
+    private static void testJoin10Nodes() throws InterruptedException {
+        ArrayList<ChordObjectStorageImpl> servers = new ArrayList<ChordObjectStorageImpl>();
+
+        servers.add(new ChordObjectStorageImpl(-1));
+        servers.get(0).createGroup(40000);
+        
+
+        while (!servers.get(0).isConnected()) {
+            Thread.sleep(100);
+        }
+        System.out.println(servers.get(0));
+
+        for (int i=1; i<10; i++) {
+            servers.add(new ChordObjectStorageImpl(-1));
+            servers.get(i).joinGroup(servers.get(i-1).getChordName(),40000+i);
+            while (!servers.get(i).isConnected()) {
+                Thread.sleep(100);
+            }
+            System.out.println(servers.get(i));
+        }
+        System.out.println("OK!");
+        
+        System.out.println(graph(servers));
+        
+    }
+
     private static String graph(List<ChordObjectStorageImpl> nodes) {
         String result = "";
         result += "digraph test {\n";
@@ -83,11 +110,11 @@ public class ChordTest {
         result += "layout=\"neato\"\n";
         result += "nodesep=\"1\"\n";
         result += "ranksep=\"2\"\n";
-        
+
         for (ChordObjectStorageImpl node : nodes) {
             result += ChordHelpers.keyOfObject(node.getChordName()) + " [color=none; shape=plaintext; fontsize=10];\n";
         }
-        
+
         for (ChordObjectStorageImpl node : nodes) {
             result += node.getGraphViz();
         }

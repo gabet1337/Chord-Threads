@@ -99,21 +99,47 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         return _pred;
     }
 
+    public void lookupNoReturn(Message message) {
+        if (pred().equals(_myName)) {
+            //send the message to origin
+            message.receiver = message.origin;
+            message.sender = getChordName();
+            message.payload = getChordName();
+            message.type = Message.RESULT;
+        } else if (ChordHelpers.inBetween(_myKey, ChordHelpers.keyOfObject(succ()), message.key)) {
+            //send the message to origin
+            message.receiver = message.origin;
+            message.sender = getChordName();
+            message.payload = succ();
+            message.type = Message.RESULT;
+        } else {
+            //forward to successor
+            message.receiver = succ();
+            message.sender = getChordName();
+        }
+        _outgoingMessages.add(message);
+    }
+
     public InetSocketAddress lookup(Message message) {
-        
+
         if (pred().equals(_myName)) {
             return _myName;
         }
 
+        //        if (ChordHelpers.inBetween(ChordHelpers.keyOfObject(pred()), _myKey, message.key)) {
+        //            return getChordName();
+        //        }
+
         if (ChordHelpers.inBetween(_myKey, ChordHelpers.keyOfObject(_succ), message.key)) {
             return _succ;
         }
+        System.out.println("HERE am I: " + _myName);
         //It's not in our proximity. Let's ask our successor.
         message.receiver = succ();
         message.sender = getChordName();
-        _outgoingMessages.add(message);
         MessageHandler handler = new MessageHandler();
         _responseHandlers.put(message.ID, handler);
+        _outgoingMessages.add(message);
         try {
             return (InetSocketAddress) handler.getMessage().payload;
         } catch (InterruptedException e) {
@@ -129,12 +155,12 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     public Object get(String name) {
         return null;
     }
-    
+
     public String toString() {
         String result = "NODEID: " + _myKey + "\n" +
-                        "ADDR: " + _myName + "\n" +
-                        "SUCC: " + succ() + "\n" +
-                        "PRED: " + pred();
+                "ADDR: " + _myName + "\n" +
+                "SUCC: " + succ() + "\n" +
+                "PRED: " + pred();
         return result;
     }
 
@@ -142,13 +168,16 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         ChordServer chordServer = new ChordServer(_incomingMessages, _port);
         ChordClient chordClient = new ChordClient(_incomingMessages, _outgoingMessages,
                 _responseHandlers, this);
+        ChordMessageSender chordMessenger = new ChordMessageSender(_outgoingMessages);
 
         Thread server = new Thread(chordServer);
         Thread client = new Thread(chordClient);
+        Thread messenger = new Thread(chordMessenger);
 
         server.start();
         client.start();
-        
+        messenger.start();
+
         if (_isJoining) {
             joinTheChordRing();
         } else {
@@ -172,9 +201,10 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
             yield();
         }
         chordClient.stopClient();
+        chordMessenger.stopSender();
 
     }
-    
+
     private void joinTheChordRing() {
         Message getSuccessor = new Message(Message.JOIN, _myKey, getChordName(), getChordName(),
                 _connectedAt, null);
@@ -187,7 +217,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        
+
         Message getPredecessor = new Message(Message.GET_PREDECESSOR, _myKey,
                 getChordName(), getChordName(), succ(), null);
         MessageHandler getPredHandler = new MessageHandler();
@@ -198,15 +228,20 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        
+
         Message setSuccessor = new Message(Message.SET_SUCCESSOR, _myKey,
                 getChordName(), getChordName(), pred(), _myName);
         Message setPredecessor = new Message(Message.SET_PREDECESSOR, _myKey,
                 getChordName(), getChordName(), succ(), _myName);
         _outgoingMessages.add(setSuccessor);
         _outgoingMessages.add(setPredecessor);
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
-    
+
     public String getGraphViz() {
         String result = "";
         result += ChordHelpers.keyOfObject(getChordName()) + " -> " + ChordHelpers.keyOfObject(succ()) + "\n";
