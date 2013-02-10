@@ -1,5 +1,4 @@
 package chord;
-import java.io.*;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -19,6 +18,10 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     private InetSocketAddress _pred;
     private InetSocketAddress _connectedAt;
 
+    private ChordClient _chordClient;
+    private ChordServer _chordServer;
+    private ChordMessageSender _chordMessenger;
+
     private Object _connectedLock = new Object();
 
     private BlockingQueue<Message> _incomingMessages = new LinkedBlockingQueue<Message>();
@@ -26,7 +29,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
 
     private Map<Integer, ResponseHandler> _responseHandlers = 
             Collections.synchronizedMap(new HashMap<Integer ,ResponseHandler>());
-    
+
     private Map<String, Object> _localStore = 
             Collections.synchronizedMap(new HashMap<String ,Object>());
 
@@ -80,10 +83,14 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     public void leaveGroup() {
+        System.out.println("Shutting down!");
         synchronized(_connectedLock) {
+            _chordServer.stopServer();
+            _chordClient.stopClient();
+            _chordMessenger.stopSender();
             _isConnected = false;
         }
-        notify();
+
     }
 
     public InetSocketAddress succ() {
@@ -148,10 +155,19 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     public void put(String name, Object object) {
-
+        int key = ChordHelpers.keyOfObject(name);
+        Message message = new Message(Message.SET_OBJECT, key, getChordName(),
+                getChordName(), succ(), object);
+        message.name = name;
+        _outgoingMessages.add(message);
     }
 
     public Object get(String name) {
+        //lets first see if we're holding it.
+        Object result = _localStore.get(name);
+        if (result != null)
+            return result;
+
         int key = ChordHelpers.keyOfObject(name);
         Message message = new Message(Message.GET_OBJECT, key, getChordName(),
                 getChordName(), succ(), null);
@@ -160,11 +176,11 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         _responseHandlers.put(message.ID, handler);
         _outgoingMessages.add(message);
         try {
-            return handler.getMessage().payload;
+            result = handler.getMessage().payload;
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        return null;
+        return result;
     }
 
     public String toString() {
@@ -176,14 +192,14 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     public void run() {
-        ChordServer chordServer = new ChordServer(_incomingMessages, _port);
-        ChordClient chordClient = new ChordClient(_incomingMessages, _outgoingMessages,
+        _chordServer = new ChordServer(_incomingMessages, _port);
+        _chordClient = new ChordClient(_incomingMessages, _outgoingMessages,
                 _responseHandlers, this, _localStore);
-        ChordMessageSender chordMessenger = new ChordMessageSender(_outgoingMessages);
+        _chordMessenger = new ChordMessageSender(_outgoingMessages);
 
-        Thread server = new Thread(chordServer);
-        Thread client = new Thread(chordClient);
-        Thread messenger = new Thread(chordMessenger);
+        Thread server = new Thread(_chordServer);
+        Thread client = new Thread(_chordClient);
+        Thread messenger = new Thread(_chordMessenger);
 
         server.start();
         client.start();
@@ -200,20 +216,21 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
 
         while (_isConnected) {
             try {
-                sleep(1000);
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
+                System.err.println("We were interrupted!");
                 e.printStackTrace();
             }
         }
-        chordServer.stopServer();
-
-        //wait until we have handled all incoming messages
-        while (!_incomingMessages.isEmpty()) {
-            yield();
+        try {
+            server.join();
+            client.join();
+            messenger.join();
+        } catch (InterruptedException e) {
+            
         }
-        chordClient.stopClient();
-        chordMessenger.stopSender();
 
+        System.out.println("I have now left the chord ring!");
     }
 
     private void joinTheChordRing() {

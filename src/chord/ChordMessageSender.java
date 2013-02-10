@@ -37,6 +37,7 @@ public class ChordMessageSender implements Runnable {
                 }
             }
         }
+        System.out.println("Messenger stopped");
     }
 
     private void sendMessage(Socket socket, Message msg) {
@@ -61,6 +62,7 @@ public class ChordMessageSender implements Runnable {
     
     public void stopSender() {
         _isRunning = false;
+        System.out.println("Stopping messenger");
     }
 
 }

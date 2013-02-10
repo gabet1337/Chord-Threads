@@ -44,7 +44,7 @@ public class ChordObjectStorageTest1 {
             System.out.println("Putting " + j);
             server[serverAtWhichToPut].put(name, object);
             try {
-                Thread.sleep(1000);
+                Thread.sleep(100);
             } catch (InterruptedException __) {
             }	
         }
@@ -78,8 +78,6 @@ public class ChordObjectStorageTest1 {
         for (int i=0; i<10; i++) {
             server[i].leaveGroup();
         }
-
-
     }
 
 }

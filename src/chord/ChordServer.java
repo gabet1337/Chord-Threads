@@ -9,7 +9,7 @@ public class ChordServer implements Runnable {
 
     private BlockingQueue<Message> _incomingMessages;
     private ServerSocket _serverSocket;
-    
+
     private boolean _isRunning;
 
     public ChordServer(BlockingQueue<Message> incoming, int port) {
@@ -20,13 +20,16 @@ public class ChordServer implements Runnable {
 
     public void run() {
         while (_isRunning) {
-//            System.out.println("ID: " + _serverSocket + " waiting for connection");
+            //            System.out.println("ID: " + _serverSocket + " waiting for connection");
             Socket socket = waitForConnection();
-            Message msg = receiveMessage(socket);
-            _incomingMessages.add(msg);
-            closeConnection(socket);
-            Thread.yield();
+            if (socket != null) {
+                Message msg = receiveMessage(socket);
+                _incomingMessages.add(msg);
+                closeConnection(socket);
+                Thread.yield();
+            }
         }
+        System.out.println("Server stopped");
     }
 
     private Message receiveMessage(Socket socket) {
@@ -49,12 +52,14 @@ public class ChordServer implements Runnable {
         Socket result = null;
         try {
             result = _serverSocket.accept();
+        } catch (SocketException e) {
+            System.err.println("We were forcefully closed!");
         } catch (IOException e) {
             e.printStackTrace();
         }
         return result;
     }
-    
+
     private void closeConnection(Socket socket) {
         try {
             socket.close();
@@ -64,9 +69,15 @@ public class ChordServer implements Runnable {
             e.printStackTrace();
         }
     }
-    
+
     public void stopServer() {
         _isRunning = false;
+        System.out.println("Stopping server");
+        try {
+            _serverSocket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 }

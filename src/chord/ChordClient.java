@@ -43,12 +43,14 @@ public class ChordClient implements Runnable {
                 case Message.GET_PREDECESSOR : handleGetPredecessor(message); break;
                 case Message.GET_SUCCESSOR : handleGetSuccessor(message); break;
                 case Message.GET_OBJECT : handleGetObject(message); break;
-                case Message.SET_OBJECT : handleSetObject(message); break;
+                case Message.SET_OBJECT : handlePutObject(message); break;
                 case Message.RESULT : handleResult(message); break;
                 default : System.err.println("Invalid message received. Ignore it");
                 }
             }
         }
+        
+        System.out.println("Client stopped");
 
     }
 
@@ -105,6 +107,7 @@ public class ChordClient implements Runnable {
             message.type = Message.RESULT;
             message.sender = _nodeReference.getChordName();
             enqueueMessage(message);
+            //System.out.println("Im sending an object back");
         } else {
             //well, lets see if my successor want anything to do with this
             message.sender = _nodeReference.getChordName();
@@ -113,10 +116,11 @@ public class ChordClient implements Runnable {
         }
     }
 
-    private void handleSetObject(Message message) {
+    private void handlePutObject(Message message) {
         if (iAmResponsibleForThisKey(message.key)) {
             //Input this key into my localstore
             _localStore.put(message.name, message.payload);
+            //System.out.println("OBJECT: " + message.name + " STORED AT: " + _nodeReference);
         } else {
             //send it along to my successor
             message.sender = _nodeReference.getChordName();
@@ -131,11 +135,14 @@ public class ChordClient implements Runnable {
     }
 
     private Message getMessageToHandle() {
-        Message message = _incomingMessages.poll();
+        Message message = null;
+        try {
+            message = _incomingMessages.poll(2, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            System.err.println("We were interrupted while waiting for messages!");
+        }
         return message;
     }
-
-    
 
     private void enqueueMessage(Message message) {
         _outgoingMessages.add(message);
@@ -143,6 +150,8 @@ public class ChordClient implements Runnable {
 
     public void stopClient() {
         _isRunning = false;
+        System.out.println("Stopping client!");
+        Thread.currentThread().interrupt();
     }
     
     private boolean iAmResponsibleForThisKey(int key) {

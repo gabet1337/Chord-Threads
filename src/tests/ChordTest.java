@@ -18,7 +18,8 @@ public class ChordTest {
         //testLookup1Node();
         //testJoin1Node();
         //testJoin2Node();
-        testJoin10Nodes();
+        //testJoin10Nodes();
+        leaveTest();
     }
 
     private static void testReceive() throws InterruptedException, IOException {
@@ -103,6 +104,13 @@ public class ChordTest {
         
         System.exit(-1);
         
+    }
+    
+    private static void leaveTest() throws InterruptedException {
+        ChordObjectStorageImpl node = new ChordObjectStorageImpl(-1);
+        node.createGroup(40000);
+        Thread.sleep(1000);
+        node.leaveGroup();
     }
 
     private static String graph(List<ChordObjectStorageImpl> nodes) {
