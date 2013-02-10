@@ -64,11 +64,24 @@ public class ChordClient implements Runnable {
     }
 
     private void handleJoin(Message message) {
+        //THERE WILL BE SOME SYNCHRONIZATION HERE AT SOME POINT TO HANDLE MULTIPLE JOINS
 
+        System.out.println("here1");
+        InetSocketAddress sender = message.sender;
+        InetSocketAddress result = _nodeReference.lookup(message);
+        System.out.println(result);
+        System.out.println("ROFL");
+        message.sender = _nodeReference.getChordName();
+        if (message.payload == null)
+            message.payload = result;
+        message.receiver = sender;
+        message.type = Message.RESULT;
+        enqueueMessage(message);
     }
 
     private void handleLookup(Message message) {
-
+        _nodeReference.lookup(message);
+        //ignore the result and have handle result forward it.
     }
 
     private void handleSetPredecessor(Message message) {
@@ -80,14 +93,16 @@ public class ChordClient implements Runnable {
     }
 
     private void handleGetPredecessor(Message message) {
-        message.receiver = message.origin;
+        message.receiver = message.sender;
+        message.sender = _nodeReference.getChordName();
         message.payload = _nodeReference.pred();
         message.type = Message.RESULT;
         enqueueMessage(message);
     }
 
     private void handleGetSuccessor(Message message) {
-        message.receiver = message.origin;
+        message.receiver = message.sender;
+        message.sender = _nodeReference.getChordName();
         message.payload = _nodeReference.succ();
         message.type = Message.RESULT;
         enqueueMessage(message);
@@ -102,15 +117,12 @@ public class ChordClient implements Runnable {
     }
 
     private void handleResult(Message message) {
-        if (message.origin.equals(_nodeReference.getChordName())) {
-            //we have been expecting this message. Lets find the response handler
-            ResponseHandler handler = _responseHandlers.get(message.ID);
-            handler.setMessage(message);
-        } else {
-            //send it to our predecessor
-            message.receiver = _nodeReference.pred();
-            enqueueMessage(message);
-        }
+        ResponseHandler handler = _responseHandlers.get(message.ID);
+        handler.setMessage(message);
+        //        if (!message.origin.equals(_nodeReference.getChordName())) {
+        //            message.receiver = _nodeReference.pred();
+        //            enqueueMessage(message);
+        //        }
     }
 
     private Message getMessageToHandle() {

@@ -2,13 +2,14 @@ package chord;
 
 import interfaces.ResponseHandler;
 
-public class LookupHandler implements ResponseHandler {
+public class MessageHandler extends Thread implements ResponseHandler {
     
     private Message _message = null;
 
     public Message getMessage() throws InterruptedException {
         if (_message == null) {
-            wait();
+            System.out.println("Waiting for reply!");
+            Thread.sleep(1000);
             return getMessage();
         } else {
             return _message;
@@ -17,7 +18,14 @@ public class LookupHandler implements ResponseHandler {
 
     public void setMessage(Message message) {
         _message = message;
-        notify();
+    }
+    
+    public void run() {
+        try {
+            getMessage();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
 }
