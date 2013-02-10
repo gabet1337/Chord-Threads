@@ -244,8 +244,10 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
 
     public String getGraphViz() {
         String result = "";
-        result += ChordHelpers.keyOfObject(getChordName()) + " -> " + ChordHelpers.keyOfObject(succ()) + "\n";
-        result += ChordHelpers.keyOfObject(getChordName()) + " -> " + ChordHelpers.keyOfObject(pred()) + "\n";
+        result += ChordHelpers.keyOfObject(getChordName()) + " -> " 
+                + ChordHelpers.keyOfObject(succ()) + "[label=\"succ\"; fontsize=\"6\"];\n";
+        result += ChordHelpers.keyOfObject(getChordName()) 
+                + " -> " + ChordHelpers.keyOfObject(pred()) + "[label=\"pred\"; fontsize=\"6\"];\n";
         return result;
     }
 

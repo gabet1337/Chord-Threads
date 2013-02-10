@@ -101,6 +101,8 @@ public class ChordTest {
         
         System.out.println(graph(servers));
         
+        System.exit(-1);
+        
     }
 
     private static String graph(List<ChordObjectStorageImpl> nodes) {

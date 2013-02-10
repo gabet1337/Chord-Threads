@@ -36,7 +36,6 @@ public class ChordObjectStorageTest1 {
                 }
             }
         }
-        System.out.println("OK!");
 
         for (int j=1; j<100; j++) {
             String name = "Name " + j;
