@@ -228,6 +228,17 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         _outgoingMessages.add(msg2);
         
         try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            
+        }
+        
+        //Send my objects to my successor.
+        for (String s : _localStore.keySet()) {
+            put(s, _localStore.get(s));
+        }
+        
+        try {
             Thread.sleep(1000);
         } catch (InterruptedException e1) {
             e1.printStackTrace();

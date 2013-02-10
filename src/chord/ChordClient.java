@@ -45,6 +45,7 @@ public class ChordClient implements Runnable {
                 case Message.GET_OBJECT : handleGetObject(message); break;
                 case Message.SET_OBJECT : handlePutObject(message); break;
                 case Message.RESULT : handleResult(message); break;
+                case Message.MIGRATE : handleMigrate(message); break;
                 default : System.err.println("Invalid message received. Ignore it");
                 }
             }
@@ -132,6 +133,10 @@ public class ChordClient implements Runnable {
     private void handleResult(Message message) {
         ResponseHandler handler = _responseHandlers.get(message.ID);
         handler.setMessage(message);
+    }
+    
+    private void handleMigrate(Message message) {
+        //ADD CODE HERE TO HANDLE MIGRATE!
     }
 
     private Message getMessageToHandle() {

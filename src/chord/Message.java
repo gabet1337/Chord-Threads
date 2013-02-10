@@ -17,6 +17,7 @@ public class Message implements Serializable {
     public static final int GET_OBJECT = 7;
     public static final int SET_OBJECT = 8;
     public static final int RESULT = 9;
+    public static final int MIGRATE = 10;
 
     public int ID = new Random().nextInt();
 
