@@ -1,6 +1,6 @@
 package interfaces;
 import java.net.InetSocketAddress;
-
+import chord.*;
 /**
  *
  * Interface for a Chord file service. Each peer is named by an IP
@@ -79,6 +79,18 @@ public interface ChordObjectStorage {
      * singleton group, the predecessor is this instance itself.
      */
     public InetSocketAddress pred();
+    
+    /**
+     * Set the predecessor to the given inetsocketaddress
+     * @param i The new predecessor address
+     */
+    public void setPredecessor(InetSocketAddress i);
+    
+    /**
+     * Set the successor to the given inetsocketaddress
+     * @param i The new successor address
+     */
+    public void setSuccessor(InetSocketAddress i);
 
     /**
      * Returns the name of the peer who is currently responsible
@@ -87,7 +99,7 @@ public interface ChordObjectStorage {
      *
      * @param key The key for which we seek the responsible peer. Must be non-negative.
      */
-    public InetSocketAddress lookup(int key);
+    public InetSocketAddress lookup(Message message);
 
     /**
      * Stores the object in the Chord network. The call should be

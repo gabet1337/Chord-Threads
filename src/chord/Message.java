@@ -1,8 +1,12 @@
 package chord;
 
+import java.io.Serializable;
 import java.net.*;
+import java.util.Random;
 
-public class Message {
+public class Message implements Serializable {
+
+    private static final long serialVersionUID = 6244711900508423510L;
     
     public static final int JOIN = 1;
     public static final int LOOKUP = 2;
@@ -14,16 +18,47 @@ public class Message {
     public static final int SET_OBJECT = 8;
     public static final int RESULT = 9;
     
+    public int ID = new Random().nextInt();
+    
     public int type;
     
     public InetSocketAddress origin;
+    
+    public InetSocketAddress receiver;
     
     public int key;
     
     public Object payload;
     
-    public Message(int type) {
+    public Message(int type, int key, InetSocketAddress origin, InetSocketAddress receiver, Object payload) {
         this.type = type;
+        this.key = key;
+        this.origin = origin;
+        this.receiver = receiver;
+        this.payload = payload;
+    }
+    
+    public String toString() {
+        String result = "ORIGIN: " + origin +  "\n" +
+                        "RECEIVER: " + receiver + "\n" +
+                        "TYPE: " + getTypeString() + "\n" +
+                        "KEY: " + key + "\n" +
+                        "PAYLOAD: " + payload + "\n";
+        return result;
+    }
+    
+    private String getTypeString() {
+        switch (type) {
+        case JOIN : return "JOIN";
+        case LOOKUP : return "LOOKUP";
+        case SET_PREDECESSOR : return "SET_PREDECESSOR";
+        case SET_SUCCESSOR : return "SET_SUCCESSOR";
+        case GET_PREDECESSOR : return "GET_PREDECESSOR";
+        case GET_SUCCESSOR : return "GET_SUCCESSOR";
+        case GET_OBJECT : return "GET_OBJECT";
+        case RESULT : return "RESULT";
+        default: return "ERROR";
+        }
     }
 
 }
