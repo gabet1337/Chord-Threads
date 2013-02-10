@@ -70,7 +70,7 @@ public class ChordObjectStorageTest1 {
                     }
                 }
             }
-        }    
+        }
 
         if (OK) System.err.println("SUCCESS!");
         else System.err.println("Try again!");

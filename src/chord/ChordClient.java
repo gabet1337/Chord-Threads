@@ -5,25 +5,26 @@ import java.net.*;
 import java.util.Map;
 import java.util.concurrent.*;
 
+import services.ChordHelpers;
+
 public class ChordClient implements Runnable {
 
     private BlockingQueue<Message> _incomingMessages;
     private BlockingQueue<Message> _outgoingMessages;
-
     private Map<Integer, ResponseHandler> _responseHandlers;
-
+    private Map<String, Object> _localStore;
     private ChordObjectStorage _nodeReference;
-
     private boolean _isRunning;
-
     private Object _joiningLock = new Object();
 
     public ChordClient(BlockingQueue<Message> incoming, BlockingQueue<Message> outgoing, 
-            Map<Integer, ResponseHandler> responseHandlers , ChordObjectStorage node) {
+            Map<Integer, ResponseHandler> responseHandlers , ChordObjectStorage node,
+            Map<String, Object> localStore) {
         _incomingMessages = incoming;
         _outgoingMessages = outgoing;
         _responseHandlers = responseHandlers;
         _nodeReference = node;
+        _localStore = localStore;
         _isRunning = true;
     }
 
@@ -33,7 +34,7 @@ public class ChordClient implements Runnable {
 
             Message message = getMessageToHandle();
             if (message != null) {
-                System.out.println(message);
+//                System.out.println(message);
                 switch (message.type) {
                 case Message.JOIN : handleJoin(message); break;
                 case Message.LOOKUP : handleLookup(message); break;
@@ -96,11 +97,32 @@ public class ChordClient implements Runnable {
     }
 
     private void handleGetObject(Message message) {
-
+        if (iAmResponsibleForThisKey(message.key)) {
+            //find the key in my localstore and send it back to
+            //the origin which will trigger an event on the synchronous waiter
+            message.payload = _localStore.get(message.name);
+            message.receiver = message.origin;
+            message.type = Message.RESULT;
+            message.sender = _nodeReference.getChordName();
+            enqueueMessage(message);
+        } else {
+            //well, lets see if my successor want anything to do with this
+            message.sender = _nodeReference.getChordName();
+            message.receiver = _nodeReference.succ();
+            enqueueMessage(message);
+        }
     }
 
     private void handleSetObject(Message message) {
-
+        if (iAmResponsibleForThisKey(message.key)) {
+            //Input this key into my localstore
+            _localStore.put(message.name, message.payload);
+        } else {
+            //send it along to my successor
+            message.sender = _nodeReference.getChordName();
+            message.receiver = _nodeReference.succ();
+            enqueueMessage(message);
+        }
     }
 
     private void handleResult(Message message) {
@@ -121,6 +143,12 @@ public class ChordClient implements Runnable {
 
     public void stopClient() {
         _isRunning = false;
+    }
+    
+    private boolean iAmResponsibleForThisKey(int key) {
+        int low = ChordHelpers.keyOfObject(_nodeReference.pred());
+        int high = ChordHelpers.keyOfObject(_nodeReference.getChordName());
+        return ChordHelpers.inBetween(low, high, key);
     }
 
 }

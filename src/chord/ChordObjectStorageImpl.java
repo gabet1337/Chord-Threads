@@ -26,6 +26,9 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
 
     private Map<Integer, ResponseHandler> _responseHandlers = 
             Collections.synchronizedMap(new HashMap<Integer ,ResponseHandler>());
+    
+    private Map<String, Object> _localStore = 
+            Collections.synchronizedMap(new HashMap<String ,Object>());
 
     public ChordObjectStorageImpl(int expectedLifeSpan) {
         super(expectedLifeSpan);
@@ -126,10 +129,6 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
             return _myName;
         }
 
-        //        if (ChordHelpers.inBetween(ChordHelpers.keyOfObject(pred()), _myKey, message.key)) {
-        //            return getChordName();
-        //        }
-
         if (ChordHelpers.inBetween(_myKey, ChordHelpers.keyOfObject(_succ), message.key)) {
             return _succ;
         }
@@ -153,6 +152,18 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     public Object get(String name) {
+        int key = ChordHelpers.keyOfObject(name);
+        Message message = new Message(Message.GET_OBJECT, key, getChordName(),
+                getChordName(), succ(), null);
+        message.name = name;
+        MessageHandler handler = new MessageHandler();
+        _responseHandlers.put(message.ID, handler);
+        _outgoingMessages.add(message);
+        try {
+            return handler.getMessage().payload;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         return null;
     }
 
@@ -167,7 +178,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     public void run() {
         ChordServer chordServer = new ChordServer(_incomingMessages, _port);
         ChordClient chordClient = new ChordClient(_incomingMessages, _outgoingMessages,
-                _responseHandlers, this);
+                _responseHandlers, this, _localStore);
         ChordMessageSender chordMessenger = new ChordMessageSender(_outgoingMessages);
 
         Thread server = new Thread(chordServer);
@@ -235,11 +246,6 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
                 getChordName(), getChordName(), succ(), _myName);
         _outgoingMessages.add(setSuccessor);
         _outgoingMessages.add(setPredecessor);
-        try {
-            Thread.sleep(200);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
     }
 
     public String getGraphViz() {

@@ -31,6 +31,8 @@ public class Message implements Serializable {
     public int key;
 
     public Object payload;
+    
+    public String name;
 
     public Message(int type, int key, InetSocketAddress origin, InetSocketAddress sender,
             InetSocketAddress receiver, Object payload) {

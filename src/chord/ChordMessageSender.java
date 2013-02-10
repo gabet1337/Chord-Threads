@@ -29,7 +29,7 @@ public class ChordMessageSender implements Runnable {
                 }
                 Socket s = getSocket(msg.receiver);
                 sendMessage(s, msg);
-                System.out.println("Sent message: " + msg);
+//                System.out.println("Sent message: " + msg);
                 try {
                     s.close();
                 } catch (IOException e) {
