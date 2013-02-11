@@ -208,14 +208,16 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
             _succ = _myName;
             _pred = _myName;
         }
-        
+
+        _isConnected = true;
+
         //migrate items to me here.
         //write a migrate function that:
-        //if _isConnected then receive objects from successor
+        //if _isJoining then receive objects from successor
         //else send objects to successor.
         //call migrate when joining and leaving!
 
-        _isConnected = true;
+        migrate(false);
 
         while (_isConnected) {
             try {
@@ -225,41 +227,15 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
                 e.printStackTrace();
             }
         }
-        
-        Message msg1 = new Message(Message.SET_PREDECESSOR, _myKey, getChordName(),
-                getChordName(), succ(), pred());
-        Message msg2 = new Message(Message.SET_SUCCESSOR, _myKey, getChordName(),
-                getChordName(), pred(), succ());
-        _outgoingMessages.add(msg1);
-        _outgoingMessages.add(msg2);
-        
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            
-        }
-        
-        //Send my objects to my successor.
-        for (String s : _localStore.keySet()) {
-        	System.out.println("Sending my objects into the chord network...");
-            put(s, _localStore.get(s));
-        }
-        
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e1) {
-            e1.printStackTrace();
-        }
-        
-        _chordServer.stopServer();
-        _chordClient.stopClient();
-        _chordMessenger.stopSender();
+
+        leaveTheChordRing();
+
         try {
             server.join();
             client.join();
             messenger.join();
         } catch (InterruptedException e) {
-            
+
         }
 
         System.out.println("I have now left the chord ring!");
@@ -297,6 +273,29 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         _outgoingMessages.add(setPredecessor);
     }
 
+    private void leaveTheChordRing() {
+        Message msg1 = new Message(Message.SET_PREDECESSOR, _myKey, getChordName(),
+                getChordName(), succ(), pred());
+        Message msg2 = new Message(Message.SET_SUCCESSOR, _myKey, getChordName(),
+                getChordName(), pred(), succ());
+        _outgoingMessages.add(msg1);
+        _outgoingMessages.add(msg2);
+
+        migrate(true);
+
+        _chordServer.stopServer();
+        _chordClient.stopClient();
+        //lets wait until all messages are sent!
+        while (!_outgoingMessages.isEmpty()) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        _chordMessenger.stopSender();
+    }
+
     public String getGraphViz() {
         String result = "";
         result += ChordHelpers.keyOfObject(getChordName()) + " -> " 
@@ -304,6 +303,24 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         result += ChordHelpers.keyOfObject(getChordName()) 
                 + " -> " + ChordHelpers.keyOfObject(pred()) + "[label=\"pred\"; fontsize=\"6\"];\n";
         return result;
+    }
+
+    private void migrate(boolean isLeaving) {
+        if (isLeaving) {
+            //Send my objects to my successor.
+            for (String s : _localStore.keySet()) {
+                System.out.println("Sending my objects into the chord network...");
+                put(s, _localStore.get(s));
+            }
+
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e1) {
+                e1.printStackTrace();
+            }
+        } else {
+            //Migrate my objects to my successor as I see fit.
+        }
     }
 
 }
