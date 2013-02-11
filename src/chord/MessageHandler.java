@@ -7,7 +7,7 @@ public class MessageHandler extends Thread implements ResponseHandler {
     private Message _message = null;
 
     public Message getMessage() throws InterruptedException {
-        while (_message == null) {}
+        while (_message == null) { Thread.yield();}
         return _message;
     }
 

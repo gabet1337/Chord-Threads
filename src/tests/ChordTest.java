@@ -18,8 +18,8 @@ public class ChordTest {
         //testLookup1Node();
         //testJoin1Node();
         //testJoin2Node();
-        //testJoin10Nodes();
-        leaveTest();
+        testJoin10Nodes();
+        //leaveTest();
     }
 
     private static void testReceive() throws InterruptedException, IOException {
