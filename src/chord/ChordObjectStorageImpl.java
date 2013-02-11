@@ -208,6 +208,12 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
             _succ = _myName;
             _pred = _myName;
         }
+        
+        //migrate items to me here.
+        //write a migrate function that:
+        //if _isConnected then receive objects from successor
+        //else send objects to successor.
+        //call migrate when joining and leaving!
 
         _isConnected = true;
 
@@ -235,6 +241,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         
         //Send my objects to my successor.
         for (String s : _localStore.keySet()) {
+        	System.out.println("Sending my objects into the chord network...");
             put(s, _localStore.get(s));
         }
         
