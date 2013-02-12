@@ -13,12 +13,12 @@ public class ChordClient implements Runnable {
     private BlockingQueue<Message> _outgoingMessages;
     private Map<Integer, ResponseHandler> _responseHandlers;
     private Map<String, Object> _localStore;
-    private ChordObjectStorage _nodeReference;
+    private ChordObjectStorageImpl _nodeReference;
     private boolean _isRunning;
     private Object _joiningLock = new Object();
 
     public ChordClient(BlockingQueue<Message> incoming, BlockingQueue<Message> outgoing, 
-            Map<Integer, ResponseHandler> responseHandlers , ChordObjectStorage node,
+            Map<Integer, ResponseHandler> responseHandlers , ChordObjectStorageImpl node,
             Map<String, Object> localStore) {
         _incomingMessages = incoming;
         _outgoingMessages = outgoing;
@@ -137,6 +137,18 @@ public class ChordClient implements Runnable {
     
     private void handleMigrate(Message message) {
         //ADD CODE HERE TO HANDLE MIGRATE!
+        //Upon receiving a request for migrate I should do the following:
+        //1. Check the payload to get the predecessors key.
+        //2. Get the key of the sender of the migrate message
+        //3. Send objects with keys having the following property:
+        // keyOfObject(predecessor) > key >= keyObObject(sender)
+        // Message should be of type: SET_OBJECT.
+        
+        int lowKey = ChordHelpers.keyOfObject((InetSocketAddress)message.payload);
+        int highKey = ChordHelpers.keyOfObject(message.sender);
+        
+        _nodeReference.migrate(lowKey, highKey);
+        
     }
 
     private Message getMessageToHandle() {
@@ -156,7 +168,6 @@ public class ChordClient implements Runnable {
     public void stopClient() {
         _isRunning = false;
         System.out.println("Stopping client!");
-        Thread.currentThread().interrupt();
     }
     
     private boolean iAmResponsibleForThisKey(int key) {

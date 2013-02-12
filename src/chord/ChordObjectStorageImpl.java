@@ -213,11 +213,9 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
 
         //migrate items to me here.
         //write a migrate function that:
-        //if _isJoining then receive objects from successor
+        //if !isLeaving then receive objects from successor
         //else send objects to successor.
         //call migrate when joining and leaving!
-
-        migrate(false);
 
         while (_isConnected) {
             try {
@@ -269,8 +267,11 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
                 getChordName(), getChordName(), pred(), _myName);
         Message setPredecessor = new Message(Message.SET_PREDECESSOR, _myKey,
                 getChordName(), getChordName(), succ(), _myName);
+        Message migrate = new Message(Message.MIGRATE, _myKey, getChordName(),
+                getChordName(), succ(), pred());
         _outgoingMessages.add(setSuccessor);
         _outgoingMessages.add(setPredecessor);
+        _outgoingMessages.add(migrate);
     }
 
     private void leaveTheChordRing() {
@@ -281,7 +282,9 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         _outgoingMessages.add(msg1);
         _outgoingMessages.add(msg2);
 
-        migrate(true);
+        for (String s : _localStore.keySet()) {
+            put(s, _localStore.get(s));
+        }
 
         _chordServer.stopServer();
         _chordClient.stopClient();
@@ -305,21 +308,25 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         return result;
     }
 
-    private void migrate(boolean isLeaving) {
-        if (isLeaving) {
-            //Send my objects to my successor.
-            for (String s : _localStore.keySet()) {
-                System.out.println("Sending my objects into the chord network...");
-                put(s, _localStore.get(s));
+    public void migrate(int lowKey, int highKey) {
+        Map<String, Object> local = 
+                Collections.synchronizedMap(new HashMap<String ,Object>());
+        Map<String, Object> out = 
+                Collections.synchronizedMap(new HashMap<String ,Object>());
+        
+        for (String s : _localStore.keySet()) {
+            int key = ChordHelpers.keyOfObject(s);
+            if (ChordHelpers.inBetween(lowKey, highKey, key)) {
+                out.put(s, _localStore.get(s));
+            } else {
+                local.put(s, _localStore.get(s));
             }
-
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e1) {
-                e1.printStackTrace();
-            }
-        } else {
-            //Migrate my objects to my successor as I see fit.
+        }
+        
+        _localStore = local;
+        
+        for (String s : out.keySet()) {
+            put(s, out.get(s));
         }
     }
 
