@@ -211,12 +211,6 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
 
         _isConnected = true;
 
-        //migrate items to me here.
-        //write a migrate function that:
-        //if !isLeaving then receive objects from successor
-        //else send objects to successor.
-        //call migrate when joining and leaving!
-
         while (_isConnected) {
             try {
                 Thread.sleep(1000);
