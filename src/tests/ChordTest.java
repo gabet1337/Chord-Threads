@@ -85,20 +85,22 @@ public class ChordTest {
         servers.get(0).createGroup(40000);
         
 
-        while (!servers.get(0).isConnected()) {
-            Thread.sleep(100);
-        }
+//        while (!servers.get(0).isConnected()) {
+//            Thread.sleep(100);
+//        }
         System.out.println(servers.get(0));
 
         for (int i=1; i<10; i++) {
             servers.add(new ChordObjectStorageImpl(-1));
             servers.get(i).joinGroup(servers.get(i-1).getChordName(),40000+i);
-            while (!servers.get(i).isConnected()) {
-                Thread.sleep(100);
-            }
+//            while (!servers.get(i).isConnected()) {
+//                Thread.sleep(100);
+//            }
             System.out.println(servers.get(i));
         }
         System.out.println("OK!");
+        
+        Thread.sleep(1000);
         
         System.out.println(graph(servers));
         

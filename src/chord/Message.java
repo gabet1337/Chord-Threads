@@ -71,6 +71,7 @@ public class Message implements Serializable {
         case RESULT : return "RESULT";
         case MIGRATE : return "MIGRATE";
         case LOCK : return "LOCK";
+        case UNLOCK : return "UNLOCK";
         default: return "ERROR";
         }
     }

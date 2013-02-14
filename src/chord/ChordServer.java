@@ -27,7 +27,7 @@ public class ChordServer implements Runnable {
 
                 _nodeReference.getIncomingMessages().add(msg);
 
-                System.out.println("INCOMING: " + msg);
+//                System.out.println("INCOMING: " + msg);
 
                 closeConnection(socket);
                 Thread.yield();

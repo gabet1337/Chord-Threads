@@ -6,11 +6,11 @@ import java.net.Socket;
 import java.util.concurrent.BlockingQueue;
 
 public class ChordMessageSender implements Runnable {
-  
+
     private boolean _isRunning;
 
     private ChordObjectStorageImpl _nodeReference;
-    
+
     public ChordMessageSender(ChordObjectStorageImpl node) {
         _nodeReference = node;
         _isRunning = true;
@@ -19,22 +19,28 @@ public class ChordMessageSender implements Runnable {
     public void run() {
 
         while (_isRunning) {
+            synchronized (_nodeReference.getOutgoingMessages()) {
+                while (!_nodeReference.getOutgoingMessages().isEmpty()) {
+                    Message msg = null;
+                    try {
+                        msg = _nodeReference.getOutgoingMessages().take();
+                        //                    System.out.println("SENDING: " + msg);
 
-            while (!_nodeReference.getOutgoingMessages().isEmpty()) {
-                Message msg = null;
-                try {
-                    msg = _nodeReference.getOutgoingMessages().take();
-                    System.out.println("SENDING: " + msg);
-
-                } catch (InterruptedException e1) {
-                    e1.printStackTrace();
+                    } catch (InterruptedException e1) {
+                        e1.printStackTrace();
+                    }
+                    Socket s = getSocket(msg.receiver);
+                    sendMessage(s, msg);
+                    //                System.out.println("Sent message: " + msg);
+                    try {
+                        s.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
-                Socket s = getSocket(msg.receiver);
-                sendMessage(s, msg);
-//                System.out.println("Sent message: " + msg);
                 try {
-                    s.close();
-                } catch (IOException e) {
+                    _nodeReference.getOutgoingMessages().wait();
+                } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
@@ -61,7 +67,7 @@ public class ChordMessageSender implements Runnable {
         }
         return result;
     }
-    
+
     public void stopSender() {
         _isRunning = false;
         System.out.println("Stopping messenger");

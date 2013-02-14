@@ -24,29 +24,26 @@ public class ChordClient implements Runnable {
             Message message = getMessageToHandle();
             if (message != null) {
                 System.out.println("HANDLING: " + message);
-                System.out.println(_nodeReference.getResponseHandlers());
-                if (_deferMessages) {
-                    // I am locked. What to do?
-                    if (message.type != Message.SET_PREDECESSOR || message.type != Message.SET_SUCCESSOR || message.type != Message.UNLOCK || message.type != Message.RESULT) {
-                        //put it back on the queue
-                    	_nodeReference.getIncomingMessages().add(message);                        
+                //                System.out.println(_nodeReference.getResponseHandlers());
+                if (_deferMessages && message.type != Message.SET_PREDECESSOR && message.type != Message.SET_SUCCESSOR 
+                        && message.type != Message.UNLOCK && message.type != Message.RESULT && message.type != Message.GET_PREDECESSOR) {
+                    _nodeReference.enqueueMessage(message);
+                } else {
+                    switch (message.type) {
+                    case Message.JOIN : handleJoin(message); break;
+                    case Message.LOOKUP : handleLookup(message); break;
+                    case Message.SET_PREDECESSOR : handleSetPredecessor(message); break;
+                    case Message.SET_SUCCESSOR : handleSetSuccessor(message); break;
+                    case Message.GET_PREDECESSOR : handleGetPredecessor(message); break;
+                    case Message.GET_SUCCESSOR : handleGetSuccessor(message); break;
+                    case Message.GET_OBJECT : handleGetObject(message); break;
+                    case Message.SET_OBJECT : handlePutObject(message); break;
+                    case Message.RESULT : handleResult(message); break;
+                    case Message.MIGRATE : handleMigrate(message); break;
+                    case Message.LOCK : handleLock(message); break;
+                    case Message.UNLOCK : handleUnlock(message); break;
+                    default : System.err.println("Invalid message received. Ignore it");
                     }
-                }
-                
-                switch (message.type) {
-                case Message.JOIN : handleJoin(message); break;
-                case Message.LOOKUP : handleLookup(message); break;
-                case Message.SET_PREDECESSOR : handleSetPredecessor(message); break;
-                case Message.SET_SUCCESSOR : handleSetSuccessor(message); break;
-                case Message.GET_PREDECESSOR : handleGetPredecessor(message); break;
-                case Message.GET_SUCCESSOR : handleGetSuccessor(message); break;
-                case Message.GET_OBJECT : handleGetObject(message); break;
-                case Message.SET_OBJECT : handlePutObject(message); break;
-                case Message.RESULT : handleResult(message); break;
-                case Message.MIGRATE : handleMigrate(message); break;
-                case Message.LOCK : handleLock(message); break;
-                case Message.UNLOCK : handleUnlock(message); break;
-                default : System.err.println("Invalid message received. Ignore it");
                 }
             }
         }
@@ -76,7 +73,7 @@ public class ChordClient implements Runnable {
         message.sender = _nodeReference.getChordName();
         message.payload = _nodeReference.pred();
         message.type = Message.RESULT;
-        enqueueMessage(message);
+        _nodeReference.enqueueMessage(message);
     }
 
     private void handleGetSuccessor(Message message) {
@@ -84,7 +81,7 @@ public class ChordClient implements Runnable {
         message.sender = _nodeReference.getChordName();
         message.payload = _nodeReference.succ();
         message.type = Message.RESULT;
-        enqueueMessage(message);
+        _nodeReference.enqueueMessage(message);
     }
 
     private void handleGetObject(Message message) {
@@ -95,26 +92,26 @@ public class ChordClient implements Runnable {
             message.receiver = message.origin;
             message.type = Message.RESULT;
             message.sender = _nodeReference.getChordName();
-            enqueueMessage(message);
+            _nodeReference.enqueueMessage(message);
             //System.out.println("Im sending an object back");
         } else {
             //well, lets see if my successor want anything to do with this
             message.sender = _nodeReference.getChordName();
             message.receiver = _nodeReference.succ();
-            enqueueMessage(message);
+            _nodeReference.enqueueMessage(message);
         }
     }
 
     private void handlePutObject(Message message) {
         if (iAmResponsibleForThisKey(message.key)) {
             //Input this key into my localstore
-        	_nodeReference.getLocalStore().put(message.name, message.payload);
+            _nodeReference.getLocalStore().put(message.name, message.payload);
             //System.out.println("OBJECT: " + message.name + " STORED AT: " + _nodeReference);
         } else {
             //send it along to my successor
             message.sender = _nodeReference.getChordName();
             message.receiver = _nodeReference.succ();
-            enqueueMessage(message);
+            _nodeReference.enqueueMessage(message);
         }
     }
 
@@ -138,16 +135,16 @@ public class ChordClient implements Runnable {
 
         _nodeReference.migrate(lowKey, highKey);
     }
-    
+
     private void handleLock(Message message) {
         boolean status = this.lock();
         message.payload = new Boolean(status);
         message.receiver = message.origin;
         message.sender = _nodeReference.getChordName();
         message.type = Message.RESULT;
-        _nodeReference.getOutgoingMessages().add(message);
+        _nodeReference.enqueueMessage(message);
     }
-    
+
     private void handleUnlock(Message message) {
         this.unlock();
     }
@@ -162,10 +159,6 @@ public class ChordClient implements Runnable {
         return message;
     }
 
-    private void enqueueMessage(Message message) {
-        _nodeReference.getOutgoingMessages().add(message);
-    }
-
     public void stopClient() {
         _isRunning = false;
         System.out.println("Stopping client!");
@@ -177,7 +170,7 @@ public class ChordClient implements Runnable {
         return ChordHelpers.inBetween(low, high, key);
     }
 
-    public boolean lock() {
+    public synchronized boolean lock() {
         if (_deferMessages) {
             return false;
         } else {
@@ -185,8 +178,8 @@ public class ChordClient implements Runnable {
             return true;
         }
     }
-    
-    public void unlock() {
+
+    public synchronized void unlock() {
         _deferMessages = false;
     }
 

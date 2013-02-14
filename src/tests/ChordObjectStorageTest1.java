@@ -29,6 +29,7 @@ public class ChordObjectStorageTest1 {
         for (int i=1; i<10; i++) {
             server[i] = new ChordObjectStorageImpl(-1);
             server[i].joinGroup(server[i-1].getChordName(),40000+i);
+            System.out.println("joining " + i);
             while (!server[i].isConnected()) {
                 try {
                     Thread.sleep(100);
