@@ -93,13 +93,13 @@ public class ChordTest {
         for (int i=1; i<10; i++) {
             servers.add(new ChordObjectStorageImpl(-1));
             servers.get(i).joinGroup(servers.get(i-1).getChordName(),40000+i);
-            while (!servers.get(i).isConnected()) {
-                Thread.sleep(100);
-            }
+            //while (!servers.get(i).isConnected()) {
+                //Thread.sleep(100);
+            //}
             System.out.println(servers.get(i));
         }
         System.out.println("OK!");
-        
+        Thread.sleep(5000);
         System.out.println(graph(servers));
         
         System.exit(-1);
@@ -122,7 +122,7 @@ public class ChordTest {
         result += "ranksep=\"2\"\n";
 
         for (ChordObjectStorageImpl node : nodes) {
-            result += ChordHelpers.keyOfObject(node.getChordName()) + " [color=none; shape=plaintext; fontsize=10];\n";
+            result += ChordHelpers.keyOfObject(node.getChordName()) / 1000000 + " [color=none; shape=plaintext; fontsize=10];\n";
         }
 
         for (ChordObjectStorageImpl node : nodes) {

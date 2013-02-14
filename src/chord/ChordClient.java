@@ -9,20 +9,11 @@ import services.ChordHelpers;
 
 public class ChordClient implements Runnable {
 
-    private BlockingQueue<Message> _incomingMessages;
-    private BlockingQueue<Message> _outgoingMessages;
-    private Map<Integer, ResponseHandler> _responseHandlers;
-    //public Map<String, Object> _localStore;
     private ChordObjectStorageImpl _nodeReference;
     private boolean _isRunning;
     private Object _joiningLock = new Object();
-
-    public ChordClient(BlockingQueue<Message> incoming, BlockingQueue<Message> outgoing, 
-            Map<Integer, ResponseHandler> responseHandlers , ChordObjectStorageImpl node,
-            Map<String, Object> localStore) {
-        _incomingMessages = incoming;
-        _outgoingMessages = outgoing;
-        _responseHandlers = responseHandlers;
+    
+    public ChordClient(ChordObjectStorageImpl node) {
         _nodeReference = node;
         //_localStore = localStore;
         _isRunning = true;
@@ -34,20 +25,24 @@ public class ChordClient implements Runnable {
 
             Message message = getMessageToHandle();
             if (message != null) {
-//                System.out.println(message);
-                switch (message.type) {
-                case Message.JOIN : handleJoin(message); break;
-                case Message.LOOKUP : handleLookup(message); break;
-                case Message.SET_PREDECESSOR : handleSetPredecessor(message); break;
-                case Message.SET_SUCCESSOR : handleSetSuccessor(message); break;
-                case Message.GET_PREDECESSOR : handleGetPredecessor(message); break;
-                case Message.GET_SUCCESSOR : handleGetSuccessor(message); break;
-                case Message.GET_OBJECT : handleGetObject(message); break;
-                case Message.SET_OBJECT : handlePutObject(message); break;
-                case Message.RESULT : handleResult(message); break;
-                case Message.MIGRATE : handleMigrate(message); break;
-                default : System.err.println("Invalid message received. Ignore it");
-                }
+            	
+            	if (!_nodeReference._isConnected && (message.type != Message.RESULT)) {
+            		_nodeReference._incomingMessages.add(message);
+            	} else {
+	                switch (message.type) {
+	                case Message.JOIN : handleJoin(message); break;
+	                case Message.LOOKUP : handleLookup(message); break;
+	                case Message.SET_PREDECESSOR : handleSetPredecessor(message); break;
+	                case Message.SET_SUCCESSOR : handleSetSuccessor(message); break;
+	                case Message.GET_PREDECESSOR : handleGetPredecessor(message); break;
+	                case Message.GET_SUCCESSOR : handleGetSuccessor(message); break;
+	                case Message.GET_OBJECT : handleGetObject(message); break;
+	                case Message.SET_OBJECT : handlePutObject(message); break;
+	                case Message.RESULT : handleResult(message); break;
+	                case Message.MIGRATE : handleMigrate(message); break;
+	                default : System.err.println("Invalid message received. Ignore it");
+	                }
+            	}
             }
         }
         
@@ -132,7 +127,7 @@ public class ChordClient implements Runnable {
     }
 
     private void handleResult(Message message) {
-        ResponseHandler handler = _responseHandlers.get(message.ID);
+        ResponseHandler handler = _nodeReference._responseHandlers.get(message.ID);
         handler.setMessage(message);
     }
     
@@ -155,7 +150,7 @@ public class ChordClient implements Runnable {
     private Message getMessageToHandle() {
         Message message = null;
         try {
-            message = _incomingMessages.poll(2, TimeUnit.SECONDS);
+            message = _nodeReference._incomingMessages.poll(2, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             System.err.println("We were interrupted while waiting for messages!");
         }
@@ -163,7 +158,7 @@ public class ChordClient implements Runnable {
     }
 
     private void enqueueMessage(Message message) {
-        _outgoingMessages.add(message);
+        _nodeReference._outgoingMessages.add(message);
     }
 
     public void stopClient() {

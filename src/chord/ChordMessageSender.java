@@ -29,6 +29,7 @@ public class ChordMessageSender implements Runnable {
                 } catch (InterruptedException e1) {
                     e1.printStackTrace();
                 }
+                _nodeReference.debug("processing message " + msg.type);
                 Socket s = getSocket(msg.receiver);
                 sendMessage(s, msg);
 //                System.out.println("Sent message: " + msg);

@@ -9,7 +9,7 @@ import interfaces.*;
 public class ChordObjectStorageImpl extends DDistThread implements ChordObjectStorage {
 
     private boolean _isJoining;
-    private boolean _isConnected;
+    public boolean _isConnected = false;
     private boolean _wasConnected;
     private int _port;
     private int _myKey;
@@ -24,10 +24,10 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
 
     private Object _connectedLock = new Object();
 
-    private BlockingQueue<Message> _incomingMessages = new LinkedBlockingQueue<Message>();
-    private BlockingQueue<Message> _outgoingMessages = new LinkedBlockingQueue<Message>();
+    public volatile BlockingQueue<Message> _incomingMessages = new LinkedBlockingQueue<Message>();
+    public volatile BlockingQueue<Message> _outgoingMessages = new LinkedBlockingQueue<Message>();
 
-    private Map<Integer, ResponseHandler> _responseHandlers = 
+    public volatile Map<Integer, ResponseHandler> _responseHandlers = 
             Collections.synchronizedMap(new HashMap<Integer ,ResponseHandler>());
 
     public volatile Map<String, Object> _localStore = 
@@ -39,6 +39,10 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         _wasConnected = false;
     }
 
+    public boolean getIsJoining() {
+    	return _isJoining;
+    }
+    
     public void createGroup(int port) {
         synchronized(_connectedLock) {
             if (_wasConnected) {
@@ -69,6 +73,9 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         _connectedAt = knownPeer;
         _myName = ChordHelpers.getMyName(port);
         _myKey = ChordHelpers.keyOfObject(_myName);
+        
+        
+        
         start();
     }
 
@@ -193,16 +200,22 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         return result;
     }
 
-    public void run() {
-        _chordServer = new ChordServer(_incomingMessages, _port, this);
-        _chordClient = new ChordClient(_incomingMessages, _outgoingMessages,
-                _responseHandlers, this, _localStore);
+    public void init() {
+    	
+    	_chordServer = new ChordServer(_incomingMessages, _port, this);
+        _chordClient = new ChordClient(this);
         _chordMessenger = new ChordMessageSender(_outgoingMessages, this);
+        
+    }
+    
+    public void run() {
 
-        Thread server = new Thread(_chordServer);
+    	init();
+    	
+    	Thread server = new Thread(_chordServer);
         Thread client = new Thread(_chordClient);
         Thread messenger = new Thread(_chordMessenger);
-
+        
         server.start();
         client.start();
         messenger.start();
@@ -219,7 +232,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         while (_isConnected) {
             try {
                 Thread.sleep(1000);
-                debug("_isConnected is up. My localStore is " + _localStore.toString());
+                //debug("_isConnected is up. My localStore is " + _localStore.toString());
             } catch (InterruptedException e) {
                 System.err.println("We were interrupted!");
                 e.printStackTrace();
@@ -305,10 +318,10 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
 
     public String getGraphViz() {
         String result = "";
-        result += ChordHelpers.keyOfObject(getChordName()) + " -> " 
-                + ChordHelpers.keyOfObject(succ()) + "[label=\"succ\"; fontsize=\"6\"];\n";
-        result += ChordHelpers.keyOfObject(getChordName()) 
-                + " -> " + ChordHelpers.keyOfObject(pred()) + "[label=\"pred\"; fontsize=\"6\"];\n";
+        result += ChordHelpers.keyOfObject(getChordName()) / 1000000 + " -> " 
+                + ChordHelpers.keyOfObject(succ()) / 1000000 + "[label=\"succ\"; fontsize=\"6\"];\n";
+        result += ChordHelpers.keyOfObject(getChordName()) / 1000000
+                + " -> " + ChordHelpers.keyOfObject(pred()) / 1000000 + "[label=\"pred\"; fontsize=\"6\"];\n";
         return result;
     }
 
