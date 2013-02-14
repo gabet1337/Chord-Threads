@@ -24,6 +24,7 @@ public class ChordMessageSender implements Runnable {
                 Message msg = null;
                 try {
                     msg = _outgoingMessages.take();
+                    System.out.println("SENDING: " + msg);
                 } catch (InterruptedException e1) {
                     e1.printStackTrace();
                 }

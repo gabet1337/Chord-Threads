@@ -4,7 +4,6 @@ import interfaces.*;
 import java.net.*;
 import java.util.Map;
 import java.util.concurrent.*;
-
 import services.ChordHelpers;
 
 public class ChordClient implements Runnable {
@@ -15,7 +14,7 @@ public class ChordClient implements Runnable {
     private Map<String, Object> _localStore;
     private ChordObjectStorageImpl _nodeReference;
     private boolean _isRunning;
-    private Object _joiningLock = new Object();
+    private boolean _deferMessages = false;
 
     public ChordClient(BlockingQueue<Message> incoming, BlockingQueue<Message> outgoing, 
             Map<Integer, ResponseHandler> responseHandlers , ChordObjectStorageImpl node,
@@ -34,7 +33,16 @@ public class ChordClient implements Runnable {
 
             Message message = getMessageToHandle();
             if (message != null) {
-//                System.out.println(message);
+                System.out.println("HANDLING: " + message);
+                System.out.println(_responseHandlers);
+                if (_deferMessages) {
+                    // I am locked. What to do?
+                    if (message.type != Message.SET_PREDECESSOR || message.type != Message.SET_SUCCESSOR || message.type != Message.UNLOCK || message.type != Message.RESULT) {
+                        //put it back on the queue
+                        _incomingMessages.add(message);
+                    }
+                }
+                
                 switch (message.type) {
                 case Message.JOIN : handleJoin(message); break;
                 case Message.LOOKUP : handleLookup(message); break;
@@ -46,57 +54,47 @@ public class ChordClient implements Runnable {
                 case Message.SET_OBJECT : handlePutObject(message); break;
                 case Message.RESULT : handleResult(message); break;
                 case Message.MIGRATE : handleMigrate(message); break;
+                case Message.LOCK : handleLock(message); break;
+                case Message.UNLOCK : handleUnlock(message); break;
                 default : System.err.println("Invalid message received. Ignore it");
                 }
             }
         }
-        
+
         System.out.println("Client stopped");
 
     }
 
     private void handleJoin(Message message) {
-        //THERE WILL BE SOME SYNCHRONIZATION HERE AT SOME POINT TO HANDLE MULTIPLE JOINS
-        synchronized(_joiningLock) {
-            ((ChordObjectStorageImpl)_nodeReference).lookupNoReturn(message);
-        }
+        ((ChordObjectStorageImpl)_nodeReference).lookupNoReturn(message);
     }
 
     private void handleLookup(Message message) {
         _nodeReference.lookup(message);
-        //ignore the result and have handle result forward it.
     }
 
     private void handleSetPredecessor(Message message) {
-        synchronized(_joiningLock) {
-            _nodeReference.setPredecessor((InetSocketAddress) message.payload);
-        }
+        _nodeReference.setPredecessor((InetSocketAddress) message.payload);
     }
 
     private void handleSetSuccessor(Message message) {
-        synchronized(_joiningLock) {
-            _nodeReference.setSuccessor((InetSocketAddress) message.payload);
-        }
+        _nodeReference.setSuccessor((InetSocketAddress) message.payload);
     }
 
     private void handleGetPredecessor(Message message) {
-        synchronized(_joiningLock) {
-            message.receiver = message.sender;
-            message.sender = _nodeReference.getChordName();
-            message.payload = _nodeReference.pred();
-            message.type = Message.RESULT;
-            enqueueMessage(message);
-        }
+        message.receiver = message.sender;
+        message.sender = _nodeReference.getChordName();
+        message.payload = _nodeReference.pred();
+        message.type = Message.RESULT;
+        enqueueMessage(message);
     }
 
     private void handleGetSuccessor(Message message) {
-        synchronized(_joiningLock) {
-            message.receiver = message.sender;
-            message.sender = _nodeReference.getChordName();
-            message.payload = _nodeReference.succ();
-            message.type = Message.RESULT;
-            enqueueMessage(message);
-        }
+        message.receiver = message.sender;
+        message.sender = _nodeReference.getChordName();
+        message.payload = _nodeReference.succ();
+        message.type = Message.RESULT;
+        enqueueMessage(message);
     }
 
     private void handleGetObject(Message message) {
@@ -133,8 +131,9 @@ public class ChordClient implements Runnable {
     private void handleResult(Message message) {
         ResponseHandler handler = _responseHandlers.get(message.ID);
         handler.setMessage(message);
+        _responseHandlers.remove(message.ID);
     }
-    
+
     private void handleMigrate(Message message) {
         //ADD CODE HERE TO HANDLE MIGRATE!
         //Upon receiving a request for migrate I should do the following:
@@ -143,12 +142,24 @@ public class ChordClient implements Runnable {
         //3. Send objects with keys having the following property:
         // keyOfObject(predecessor) > key >= keyObObject(sender)
         // Message should be of type: SET_OBJECT.
-        
+
         int lowKey = ChordHelpers.keyOfObject((InetSocketAddress)message.payload);
         int highKey = ChordHelpers.keyOfObject(message.sender);
-        
+
         _nodeReference.migrate(lowKey, highKey);
-        
+    }
+    
+    private void handleLock(Message message) {
+        boolean status = this.lock();
+        message.payload = new Boolean(status);
+        message.receiver = message.origin;
+        message.sender = _nodeReference.getChordName();
+        message.type = Message.RESULT;
+        _outgoingMessages.add(message);
+    }
+    
+    private void handleUnlock(Message message) {
+        this.unlock();
     }
 
     private Message getMessageToHandle() {
@@ -169,11 +180,24 @@ public class ChordClient implements Runnable {
         _isRunning = false;
         System.out.println("Stopping client!");
     }
-    
+
     private boolean iAmResponsibleForThisKey(int key) {
         int low = ChordHelpers.keyOfObject(_nodeReference.pred());
         int high = ChordHelpers.keyOfObject(_nodeReference.getChordName());
         return ChordHelpers.inBetween(low, high, key);
+    }
+
+    public boolean lock() {
+        if (_deferMessages) {
+            return false;
+        } else {
+            _deferMessages = true;
+            return true;
+        }
+    }
+    
+    public void unlock() {
+        _deferMessages = false;
     }
 
 }
