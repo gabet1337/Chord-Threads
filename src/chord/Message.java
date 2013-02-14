@@ -18,6 +18,8 @@ public class Message implements Serializable {
     public static final int SET_OBJECT = 8;
     public static final int RESULT = 9;
     public static final int MIGRATE = 10;
+    public static final int LOCK = 11;
+    public static final int UNLOCK = 12;
 
     public int ID = new Random().nextInt();
 
@@ -67,6 +69,8 @@ public class Message implements Serializable {
         case GET_SUCCESSOR : return "GET_SUCCESSOR";
         case GET_OBJECT : return "GET_OBJECT";
         case RESULT : return "RESULT";
+        case MIGRATE : return "MIGRATE";
+        case LOCK : return "LOCK";
         default: return "ERROR";
         }
     }
