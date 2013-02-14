@@ -12,12 +12,11 @@ public class ChordObjectStorageTest2 {
     public static void main(String[] _) {
 
         ChordObjectStorageImpl server[] = new ChordObjectStorageImpl[10];
-
         server[0] = new ChordObjectStorageImpl(-1); 
         server[0].createGroup(40000); 
 
         for (int i=1; i<10; i++) {
-            server[i] = new ChordObjectStorageImpl(-1);	    
+            server[i] = new ChordObjectStorageImpl(-1);
             server[i].joinGroup(server[i-1].getChordName(),40000+i);
         }
 
