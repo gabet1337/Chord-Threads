@@ -241,41 +241,49 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     private void joinTheChordRing() {
-        //        Message getSuccessor = new Message(Message.JOIN, _myKey, getChordName(), getChordName(),
-        //                _connectedAt, null);
-        //        MessageHandler succHandler = new MessageHandler();
-        //        _responseHandlers.put(getSuccessor.ID, succHandler);
-        //        _outgoingMessages.add(getSuccessor);
-        //        try {
-        //            setSuccessor((InetSocketAddress)succHandler.getMessage().payload);
-        //        } catch (InterruptedException e) {
-        //            e.printStackTrace();
-        //        }
-        //
-        //        Message getPredecessor = new Message(Message.GET_PREDECESSOR, _myKey,
-        //                getChordName(), getChordName(), succ(), null);
-        //        MessageHandler getPredHandler = new MessageHandler();
-        //        _responseHandlers.put(getPredecessor.ID, getPredHandler);
-        //        _outgoingMessages.add(getPredecessor);
-        //        try {
-        //            setPredecessor((InetSocketAddress)getPredHandler.getMessage().payload);
-        //        } catch (InterruptedException e) {
-        //            e.printStackTrace();
-        //        }
-        //
-        //        Message setSuccessor = new Message(Message.SET_SUCCESSOR, _myKey,
-        //                getChordName(), getChordName(), pred(), _myName);
-        //        Message setPredecessor = new Message(Message.SET_PREDECESSOR, _myKey,
-        //                getChordName(), getChordName(), succ(), _myName);
-        //        Message migrate = new Message(Message.MIGRATE, _myKey, getChordName(),
-        //                getChordName(), succ(), pred());
-        //        _outgoingMessages.add(setSuccessor);
-        //        _outgoingMessages.add(setPredecessor);
-        //        _outgoingMessages.add(migrate);
-        while (!_isConnected) {
+    	
+                Message getSuccessor = new Message(Message.JOIN, _myKey, getChordName(), getChordName(),
+                        _connectedAt, null);
+                MessageHandler succHandler = new MessageHandler();
+                _responseHandlers.put(getSuccessor.ID, succHandler);
+                _outgoingMessages.add(getSuccessor);
+                
+                //try {
+                    setSuccessor((InetSocketAddress)succHandler.getMessage().payload);
+                //} catch (InterruptedException e) {
+                //    e.printStackTrace();
+                //}
+        
+                Message getPredecessor = new Message(Message.GET_PREDECESSOR, _myKey,
+                        getChordName(), getChordName(), succ(), null);
+                MessageHandler getPredHandler = new MessageHandler();
+                _responseHandlers.put(getPredecessor.ID, getPredHandler);
+                _outgoingMessages.add(getPredecessor);
+                
+                //try {
+                    setPredecessor((InetSocketAddress)getPredHandler.getMessage().payload);
+                //} catch (InterruptedException e) {
+                //    e.printStackTrace();
+                //}
+        
+                Message setSuccessor = new Message(Message.SET_SUCCESSOR, _myKey,
+                        getChordName(), getChordName(), pred(), _myName);
+                Message setPredecessor = new Message(Message.SET_PREDECESSOR, _myKey,
+                        getChordName(), getChordName(), succ(), _myName);
+                Message migrate = new Message(Message.MIGRATE, _myKey, getChordName(),
+                        getChordName(), succ(), pred());
+                _outgoingMessages.add(setSuccessor);
+                _outgoingMessages.add(setPredecessor);
+                _outgoingMessages.add(migrate);
+        
+    	return;
+    	
+    	/*
+    	while (!_isConnected) {
             Message lookupSuccessor = new Message(Message.JOIN, _myKey, getChordName(),
                     getChordName(), _connectedAt, null);
             MessageHandler lookupSuccessorHandler = new MessageHandler();
+            
             _responseHandlers.put(lookupSuccessor.ID, lookupSuccessorHandler);
             _outgoingMessages.add(lookupSuccessor);
             InetSocketAddress tmpSuccessor = (InetSocketAddress) lookupSuccessorHandler.getMessage().payload;
@@ -321,8 +329,9 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
                 }
             }
         }
-
-
+		
+		*/
+		
     }
 
     private void leaveTheChordRing() {

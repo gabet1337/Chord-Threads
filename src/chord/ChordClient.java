@@ -27,7 +27,7 @@ public class ChordClient implements Runnable {
                 System.out.println(_nodeReference.getResponseHandlers());
                 if (_deferMessages) {
                     // I am locked. What to do?
-                    if (message.type != Message.SET_PREDECESSOR || message.type != Message.SET_SUCCESSOR || message.type != Message.UNLOCK || message.type != Message.RESULT) {
+                    if (message.type != Message.SET_PREDECESSOR && message.type != Message.SET_SUCCESSOR && message.type != Message.UNLOCK && message.type != Message.RESULT && message.type != Message.GET_PREDECESSOR) {
                         //put it back on the queue
                     	_nodeReference.getIncomingMessages().add(message);                        
                     }
@@ -119,6 +119,9 @@ public class ChordClient implements Runnable {
     }
 
     private void handleResult(Message message) {
+    	System.out.println("Got here!");
+    	System.out.println("Null? " + _nodeReference);
+    	System.out.println("Null2? " + _nodeReference.getResponseHandlers());
         ResponseHandler handler = _nodeReference.getResponseHandlers().get(message.ID);
         handler.setMessage(message);
         _nodeReference.getResponseHandlers().remove(message.ID);
