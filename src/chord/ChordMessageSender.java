@@ -10,10 +10,12 @@ public class ChordMessageSender implements Runnable {
     private BlockingQueue<Message> _outgoingMessages;
     
     private boolean _isRunning;
-
-    public ChordMessageSender(BlockingQueue<Message> outgoing) {
+    ChordObjectStorageImpl _nodeReference;
+    
+    public ChordMessageSender(BlockingQueue<Message> outgoing, ChordObjectStorageImpl nodeReference) {
         _outgoingMessages = outgoing;
         _isRunning = true;
+        _nodeReference = nodeReference;
     }
 
     public void run() {
@@ -37,7 +39,7 @@ public class ChordMessageSender implements Runnable {
                 }
             }
         }
-        System.out.println("Messenger stopped");
+        _nodeReference.debug("Messenger stopped");
     }
 
     private void sendMessage(Socket socket, Message msg) {
@@ -62,7 +64,7 @@ public class ChordMessageSender implements Runnable {
     
     public void stopSender() {
         _isRunning = false;
-        System.out.println("Stopping messenger");
+        _nodeReference.debug("Stopping messenger");
     }
 
 }

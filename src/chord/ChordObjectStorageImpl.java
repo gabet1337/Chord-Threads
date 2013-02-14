@@ -30,7 +30,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     private Map<Integer, ResponseHandler> _responseHandlers = 
             Collections.synchronizedMap(new HashMap<Integer ,ResponseHandler>());
 
-    private Map<String, Object> _localStore = 
+    public volatile Map<String, Object> _localStore = 
             Collections.synchronizedMap(new HashMap<String ,Object>());
 
     public ChordObjectStorageImpl(int expectedLifeSpan) {
@@ -83,7 +83,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     public void leaveGroup() {
-        System.out.println("Shutting down!");
+    	debug("Shutting down!");
         synchronized(_connectedLock) {
             _isConnected = false;
         }
@@ -151,11 +151,16 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         return null;
     }
 
+    public void debug(String message) {
+    	System.out.println("" + getChordName().getPort() +  ": " + message);
+	}
+    
     public void put(String name, Object object) {
         int key = ChordHelpers.keyOfObject(name);
         Message message = new Message(Message.SET_OBJECT, key, getChordName(),
                 getChordName(), succ(), object);
         message.name = name;
+        debug("put " + object.toString() + " in outgoing queue.");
         _outgoingMessages.add(message);
     }
 
@@ -189,10 +194,10 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     public void run() {
-        _chordServer = new ChordServer(_incomingMessages, _port);
+        _chordServer = new ChordServer(_incomingMessages, _port, this);
         _chordClient = new ChordClient(_incomingMessages, _outgoingMessages,
                 _responseHandlers, this, _localStore);
-        _chordMessenger = new ChordMessageSender(_outgoingMessages);
+        _chordMessenger = new ChordMessageSender(_outgoingMessages, this);
 
         Thread server = new Thread(_chordServer);
         Thread client = new Thread(_chordClient);
@@ -214,12 +219,15 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         while (_isConnected) {
             try {
                 Thread.sleep(1000);
+                debug("_isConnected is up. My localStore is " + _localStore.toString());
             } catch (InterruptedException e) {
                 System.err.println("We were interrupted!");
                 e.printStackTrace();
             }
         }
 
+        debug("_isConnected just went down. My localStore is " + _localStore.toString());
+        
         leaveTheChordRing();
 
         try {
@@ -229,8 +237,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         } catch (InterruptedException e) {
 
         }
-
-        System.out.println("I have now left the chord ring!");
+        debug("I have now left the chord ring!");
     }
 
     private void joinTheChordRing() {
@@ -269,6 +276,9 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     private void leaveTheChordRing() {
+    	
+    	debug("leaving the chord ring with the following localStore: " + _localStore.toString());
+    	
         Message msg1 = new Message(Message.SET_PREDECESSOR, _myKey, getChordName(),
                 getChordName(), succ(), pred());
         Message msg2 = new Message(Message.SET_SUCCESSOR, _myKey, getChordName(),

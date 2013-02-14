@@ -11,11 +11,14 @@ public class ChordServer implements Runnable {
     private ServerSocket _serverSocket;
 
     private boolean _isRunning;
+    
+    private ChordObjectStorageImpl _nodeReference;
 
-    public ChordServer(BlockingQueue<Message> incoming, int port) {
+    public ChordServer(BlockingQueue<Message> incoming, int port, ChordObjectStorageImpl nodeReference) {
         _incomingMessages = incoming;
         _serverSocket = ChordHelpers.getServerSocket(port);
         _isRunning = true;
+        _nodeReference = nodeReference;
     }
 
     public void run() {
@@ -29,7 +32,7 @@ public class ChordServer implements Runnable {
                 Thread.yield();
             }
         }
-        System.out.println("Server stopped");
+        _nodeReference.debug("Server stopped");
     }
 
     private Message receiveMessage(Socket socket) {
@@ -53,6 +56,7 @@ public class ChordServer implements Runnable {
         try {
             result = _serverSocket.accept();
         } catch (SocketException e) {
+        	_nodeReference.debug("We were forcefully closed!");
             System.err.println("We were forcefully closed!");
         } catch (IOException e) {
             e.printStackTrace();
@@ -72,7 +76,7 @@ public class ChordServer implements Runnable {
 
     public void stopServer() {
         _isRunning = false;
-        System.out.println("Stopping server");
+        _nodeReference.debug("Stopping server");
         try {
             _serverSocket.close();
         } catch (IOException e) {

@@ -6,7 +6,7 @@ import java.net.*;
 import java.nio.ByteBuffer;
 
 public class ChordHelpers {
-
+	
     /**
      * Compute the key of a given object. Returns a positive 31-bit
      * integer, hashed as to be "random looking" even for similar
@@ -84,6 +84,7 @@ public class ChordHelpers {
         //        return (low < candidate && candidate <= high);
     } 
 
+    
     /**
      * @param a Must be a non-negative
      * @param b Must be a non-negative     

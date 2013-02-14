@@ -12,7 +12,7 @@ public class ChordClient implements Runnable {
     private BlockingQueue<Message> _incomingMessages;
     private BlockingQueue<Message> _outgoingMessages;
     private Map<Integer, ResponseHandler> _responseHandlers;
-    private Map<String, Object> _localStore;
+    //public Map<String, Object> _localStore;
     private ChordObjectStorageImpl _nodeReference;
     private boolean _isRunning;
     private Object _joiningLock = new Object();
@@ -24,7 +24,7 @@ public class ChordClient implements Runnable {
         _outgoingMessages = outgoing;
         _responseHandlers = responseHandlers;
         _nodeReference = node;
-        _localStore = localStore;
+        //_localStore = localStore;
         _isRunning = true;
     }
 
@@ -51,7 +51,7 @@ public class ChordClient implements Runnable {
             }
         }
         
-        System.out.println("Client stopped");
+        _nodeReference.debug("Client stopped");
 
     }
 
@@ -103,7 +103,7 @@ public class ChordClient implements Runnable {
         if (iAmResponsibleForThisKey(message.key)) {
             //find the key in my localstore and send it back to
             //the origin which will trigger an event on the synchronous waiter
-            message.payload = _localStore.get(message.name);
+            message.payload = _nodeReference._localStore.get(message.name);
             message.receiver = message.origin;
             message.type = Message.RESULT;
             message.sender = _nodeReference.getChordName();
@@ -120,7 +120,8 @@ public class ChordClient implements Runnable {
     private void handlePutObject(Message message) {
         if (iAmResponsibleForThisKey(message.key)) {
             //Input this key into my localstore
-            _localStore.put(message.name, message.payload);
+            _nodeReference._localStore.put(message.name, message.payload);
+            _nodeReference.debug("I just added " + message.name + " to my localStore. By the way; my localStore now contains: " + _nodeReference._localStore.toString());
             //System.out.println("OBJECT: " + message.name + " STORED AT: " + _nodeReference);
         } else {
             //send it along to my successor
@@ -167,7 +168,7 @@ public class ChordClient implements Runnable {
 
     public void stopClient() {
         _isRunning = false;
-        System.out.println("Stopping client!");
+        _nodeReference.debug("Stopping client!");
     }
     
     private boolean iAmResponsibleForThisKey(int key) {
