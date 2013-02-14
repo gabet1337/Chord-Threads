@@ -40,9 +40,9 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     public boolean getIsJoining() {
-    	return _isJoining;
+        return _isJoining;
     }
-    
+
     public void createGroup(int port) {
         synchronized(_connectedLock) {
             if (_wasConnected) {
@@ -73,9 +73,9 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         _connectedAt = knownPeer;
         _myName = ChordHelpers.getMyName(port);
         _myKey = ChordHelpers.keyOfObject(_myName);
-        
-        
-        
+
+
+
         start();
     }
 
@@ -90,7 +90,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     public void leaveGroup() {
-    	debug("Shutting down!");
+        debug("Shutting down!");
         synchronized(_connectedLock) {
             _isConnected = false;
         }
@@ -131,7 +131,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
             message.receiver = succ();
             message.sender = getChordName();
         }
-        _outgoingMessages.add(message);
+        enqueueMessage(message);
     }
 
     public InetSocketAddress lookup(Message message) {
@@ -149,26 +149,21 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         message.sender = getChordName();
         MessageHandler handler = new MessageHandler();
         _responseHandlers.put(message.ID, handler);
-        _outgoingMessages.add(message);
-        try {
-            return (InetSocketAddress) handler.getMessage().payload;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        return null;
+        enqueueMessage(message);
+        return (InetSocketAddress) handler.getMessage().payload;
     }
 
     public void debug(String message) {
-    	System.out.println("" + getChordName().getPort() +  ": " + message);
-	}
-    
+        System.out.println("" + getChordName().getPort() +  ": " + message);
+    }
+
     public void put(String name, Object object) {
         int key = ChordHelpers.keyOfObject(name);
         Message message = new Message(Message.SET_OBJECT, key, getChordName(),
                 getChordName(), succ(), object);
         message.name = name;
         debug("put " + object.toString() + " in outgoing queue.");
-        _outgoingMessages.add(message);
+        enqueueMessage(message);
     }
 
     public Object get(String name) {
@@ -183,12 +178,8 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         message.name = name;
         MessageHandler handler = new MessageHandler();
         _responseHandlers.put(message.ID, handler);
-        _outgoingMessages.add(message);
-        try {
-            result = handler.getMessage().payload;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        enqueueMessage(message);
+        result = handler.getMessage().payload;
         return result;
     }
 
@@ -201,21 +192,22 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     public void init() {
-    	
-    	_chordServer = new ChordServer(_incomingMessages, _port, this);
+
+        _chordServer = new ChordServer(_incomingMessages, _port, this);
         _chordClient = new ChordClient(this);
         _chordMessenger = new ChordMessageSender(_outgoingMessages, this);
-        
-    }
-    
-    public void run() {
 
-    	init();
-    	
-    	Thread server = new Thread(_chordServer);
+    }
+
+    public void run() {
+        System.out.println("Starting");
+
+        init();
+
+        Thread server = new Thread(_chordServer);
         Thread client = new Thread(_chordClient);
         Thread messenger = new Thread(_chordMessenger);
-        
+
         server.start();
         client.start();
         messenger.start();
@@ -240,7 +232,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         }
 
         debug("_isConnected just went down. My localStore is " + _localStore.toString());
-        
+
         leaveTheChordRing();
 
         try {
@@ -254,28 +246,20 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     private void joinTheChordRing() {
+        System.out.println("JOINING");
         Message getSuccessor = new Message(Message.JOIN, _myKey, getChordName(), getChordName(),
                 _connectedAt, null);
         MessageHandler succHandler = new MessageHandler();
-        succHandler.start();
         _responseHandlers.put(getSuccessor.ID, succHandler);
-        _outgoingMessages.add(getSuccessor);
-        try {
-            setSuccessor((InetSocketAddress)succHandler.getMessage().payload);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        enqueueMessage(getSuccessor);
+        setSuccessor((InetSocketAddress)succHandler.getMessage().payload);
 
         Message getPredecessor = new Message(Message.GET_PREDECESSOR, _myKey,
                 getChordName(), getChordName(), succ(), null);
         MessageHandler getPredHandler = new MessageHandler();
         _responseHandlers.put(getPredecessor.ID, getPredHandler);
-        _outgoingMessages.add(getPredecessor);
-        try {
-            setPredecessor((InetSocketAddress)getPredHandler.getMessage().payload);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        enqueueMessage(getPredecessor);
+        setPredecessor((InetSocketAddress)getPredHandler.getMessage().payload);
 
         Message setSuccessor = new Message(Message.SET_SUCCESSOR, _myKey,
                 getChordName(), getChordName(), pred(), _myName);
@@ -283,21 +267,74 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
                 getChordName(), getChordName(), succ(), _myName);
         Message migrate = new Message(Message.MIGRATE, _myKey, getChordName(),
                 getChordName(), succ(), pred());
-        _outgoingMessages.add(setSuccessor);
-        _outgoingMessages.add(setPredecessor);
-        _outgoingMessages.add(migrate);
+        enqueueMessage(setSuccessor);
+        enqueueMessage(setPredecessor);
+        enqueueMessage(migrate);
+        //        while (!_isConnected) {
+        //            Message lookupSuccessor = new Message(Message.JOIN, _myKey, getChordName(),
+        //                    getChordName(), _connectedAt, null);
+        //            MessageHandler lookupSuccessorHandler = new MessageHandler();
+        //            _responseHandlers.put(lookupSuccessor.ID, lookupSuccessorHandler);
+        //            enqueueMessage(lookupSuccessor);
+        //            InetSocketAddress tmpSuccessor = (InetSocketAddress) lookupSuccessorHandler.getMessage().payload;
+        //            //At this point we have locked our successor and saved his address temporarily.
+        //
+        //            Message getPredecessor = new Message(Message.GET_PREDECESSOR, _myKey, getChordName(), getChordName(), tmpSuccessor, null);
+        //            MessageHandler getPredeccessorHandler = new MessageHandler();
+        //            _responseHandlers.put(getPredecessor.ID, getPredeccessorHandler);
+        //            enqueueMessage(getPredecessor);
+        //            InetSocketAddress tmpPredecessor = (InetSocketAddress) getPredeccessorHandler.getMessage().payload;
+        //            //At this point we need to make sure that we can take lock on tmpPredecessor.
+        //            Boolean OK = true;
+        //            if (!tmpPredecessor.equals(tmpSuccessor)) {
+        //                //we are the first node to join the creator and he is therefore locked already
+        //                Message lockPredecessor = new Message(Message.LOCK, _myKey, getChordName(), getChordName(), tmpPredecessor, null);
+        //                MessageHandler lockPredecessorHandler = new MessageHandler();
+        //                _responseHandlers.put(lockPredecessor.ID, lockPredecessorHandler);
+        //                enqueueMessage(lockPredecessor);
+        //                OK = (Boolean) lockPredecessorHandler.getMessage().payload;
+        //            }
+        //
+        //            if (OK) {
+        //                setSuccessor(tmpSuccessor);
+        //                setPredecessor(tmpPredecessor);
+        //                Message setSucc = new Message(Message.SET_SUCCESSOR, _myKey, getChordName(), getChordName(), pred(), getChordName());
+        //                Message setPred = new Message(Message.SET_PREDECESSOR, _myKey, getChordName(), getChordName(), succ(), getChordName());
+        //                Message unlockSucc = new Message(Message.UNLOCK, _myKey, getChordName(), getChordName(), succ(), null);
+        //                Message unlockPred = new Message(Message.UNLOCK, _myKey, getChordName(), getChordName(), pred(), null);
+        //                Message migrate = new Message(Message.MIGRATE, _myKey, getChordName(), getChordName(), succ(), pred());
+        //                enqueueMessage(setSucc);
+        //                enqueueMessage(setPred);
+        //                enqueueMessage(unlockPred);
+        //                enqueueMessage(unlockSucc);
+        //                enqueueMessage(migrate);
+        //
+        //                //leave loop
+        //                _isConnected = true;
+        //                continue;
+        //            } else {
+        //                //we couldn't require locks, so we must unlock tmp successor and start over
+        //                Message unlockSucc = new Message(Message.UNLOCK, _myKey, getChordName(), getChordName(), tmpSuccessor, null);
+        //                enqueueMessage(unlockSucc);
+        //                try {
+        //                    Thread.sleep(200*new Random().nextInt(5)+1);
+        //                } catch (InterruptedException e) {
+        //                    e.printStackTrace();
+        //                }
+        //            }
+        //        }
     }
 
     private void leaveTheChordRing() {
-    	
-    	debug("leaving the chord ring with the following localStore: " + _localStore.toString());
-    	
+
+        debug("leaving the chord ring with the following localStore: " + _localStore.toString());
+
         Message msg1 = new Message(Message.SET_PREDECESSOR, _myKey, getChordName(),
                 getChordName(), succ(), pred());
         Message msg2 = new Message(Message.SET_SUCCESSOR, _myKey, getChordName(),
                 getChordName(), pred(), succ());
-        _outgoingMessages.add(msg1);
-        _outgoingMessages.add(msg2);
+        enqueueMessage(msg1);
+        enqueueMessage(msg2);
 
         for (String s : _localStore.keySet()) {
             put(s, _localStore.get(s));
@@ -330,7 +367,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
                 Collections.synchronizedMap(new HashMap<String ,Object>());
         Map<String, Object> out = 
                 Collections.synchronizedMap(new HashMap<String ,Object>());
-        
+
         for (String s : _localStore.keySet()) {
             int key = ChordHelpers.keyOfObject(s);
             if (ChordHelpers.inBetween(lowKey, highKey, key)) {
@@ -339,11 +376,18 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
                 local.put(s, _localStore.get(s));
             }
         }
-        
+
         _localStore = local;
-        
+
         for (String s : out.keySet()) {
             put(s, out.get(s));
+        }
+    }
+
+    public void enqueueMessage(Message message) {
+        synchronized (_outgoingMessages) {
+            _outgoingMessages.add(message);
+            _outgoingMessages.notify();
         }
     }
 

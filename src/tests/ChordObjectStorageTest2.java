@@ -27,6 +27,8 @@ public class ChordObjectStorageTest2 {
             System.out.println("Putting " + j);
             server[serverAtWhichToPut].put(name, object);
         }
+        
+        System.out.println("HALF WAY!");
 
         /**
          * Let us give the puts a few second to arrive at their right

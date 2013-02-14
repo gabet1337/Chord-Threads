@@ -2,25 +2,29 @@ package chord;
 
 import interfaces.ResponseHandler;
 
-public class MessageHandler extends Thread implements ResponseHandler {
-    
+public class MessageHandler implements ResponseHandler {
+
     private Message _message = null;
 
-    public Message getMessage() throws InterruptedException {
-        while (_message == null) { Thread.yield();}
+    private Object lock = new Object();
+
+    public Message getMessage() {
+        while (_message == null) { 
+            try {
+                synchronized (lock) {
+                    lock.wait();
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
         return _message;
     }
 
     public void setMessage(Message message) {
         _message = message;
-    }
-    
-    public void run() {
-        try {
-            getMessage();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        synchronized (lock) {
+            lock.notify();
         }
     }
-
 }

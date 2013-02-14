@@ -18,6 +18,8 @@ public class Message implements Serializable {
     public static final int SET_OBJECT = 8;
     public static final int RESULT = 9;
     public static final int MIGRATE = 10;
+    public static final int LOCK = 11;
+    public static final int UNLOCK = 12;
 
     public int ID = new Random().nextInt();
 
@@ -32,7 +34,7 @@ public class Message implements Serializable {
     public int key;
 
     public Object payload;
-    
+
     public String name;
 
     public Message(int type, int key, InetSocketAddress origin, InetSocketAddress sender,
@@ -48,12 +50,12 @@ public class Message implements Serializable {
     public String toString() {
         String result = 
                 "ID: " + ID + "\n" +
-                "ORIGIN: " + origin +  "\n" +
-                "SENDER: " + sender + "\n" +
-                "RECEIVER: " + receiver + "\n" +
-                "TYPE: " + getTypeString() + "\n" +
-                "KEY: " + key + "\n" +
-                "PAYLOAD: " + payload + "\n";
+                        "ORIGIN: " + origin +  "\n" +
+                        "SENDER: " + sender + "\n" +
+                        "RECEIVER: " + receiver + "\n" +
+                        "TYPE: " + getTypeString() + "\n" +
+                        "KEY: " + key + "\n" +
+                        "PAYLOAD: " + payload + "\n";
         return result;
     }
 
@@ -67,6 +69,9 @@ public class Message implements Serializable {
         case GET_SUCCESSOR : return "GET_SUCCESSOR";
         case GET_OBJECT : return "GET_OBJECT";
         case RESULT : return "RESULT";
+        case MIGRATE : return "MIGRATE";
+        case LOCK : return "LOCK";
+        case UNLOCK : return "UNLOCK";
         default: return "ERROR";
         }
     }
