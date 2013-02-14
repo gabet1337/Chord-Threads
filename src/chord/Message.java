@@ -68,6 +68,7 @@ public class Message implements Serializable {
         case GET_PREDECESSOR : return "GET_PREDECESSOR";
         case GET_SUCCESSOR : return "GET_SUCCESSOR";
         case GET_OBJECT : return "GET_OBJECT";
+        case SET_OBJECT : return "SET_OBJECT";
         case RESULT : return "RESULT";
         case MIGRATE : return "MIGRATE";
         case LOCK : return "LOCK";

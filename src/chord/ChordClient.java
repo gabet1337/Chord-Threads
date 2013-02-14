@@ -42,6 +42,8 @@ public class ChordClient implements Runnable {
                     case Message.SET_OBJECT : handlePutObject(message); break;
                     case Message.RESULT : handleResult(message); break;
                     case Message.MIGRATE : handleMigrate(message); break;
+                    case Message.LOCK : handleLock(message); break;
+                    case Message.UNLOCK : handleUnlock(message); break;
                     default : System.err.println("Invalid message received. Ignore it");
                     }
                 }

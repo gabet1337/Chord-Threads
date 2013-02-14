@@ -20,6 +20,12 @@ public class ChordObjectStorageTest2 {
             server[i].joinGroup(server[i-1].getChordName(),40000+i);
         }
         
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        
         for (int j=1; j<100; j++) {
             String name = "Name " + j;
             Object object = Integer.valueOf(j);
