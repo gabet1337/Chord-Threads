@@ -39,6 +39,26 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         _wasConnected = false;
     }
 
+    public int getPort() {
+    	return _port;
+    }
+    
+    public Map<String, Object> getLocalStore() {
+    	return _localStore;
+    }
+    
+    public Map<Integer, ResponseHandler> getResponseHandlers() {
+    	return _responseHandlers;
+    }
+    
+    public BlockingQueue<Message> getIncomingMessages() {
+    	return _incomingMessages;
+    }
+    
+    public BlockingQueue<Message> getOutgoingMessages() {
+    	return _outgoingMessages;
+    }
+    
     public void createGroup(int port) {
         synchronized(_connectedLock) {
             if (_wasConnected) {
@@ -189,10 +209,9 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     public void run() {
-        _chordServer = new ChordServer(_incomingMessages, _port);
-        _chordClient = new ChordClient(_incomingMessages, _outgoingMessages,
-                _responseHandlers, this, _localStore);
-        _chordMessenger = new ChordMessageSender(_outgoingMessages);
+        _chordServer = new ChordServer(this);
+        _chordClient = new ChordClient(this);
+        _chordMessenger = new ChordMessageSender(this);
 
         Thread server = new Thread(_chordServer);
         Thread client = new Thread(_chordClient);

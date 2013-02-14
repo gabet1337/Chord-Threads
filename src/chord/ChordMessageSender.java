@@ -6,13 +6,13 @@ import java.net.Socket;
 import java.util.concurrent.BlockingQueue;
 
 public class ChordMessageSender implements Runnable {
-
-    private BlockingQueue<Message> _outgoingMessages;
-    
+  
     private boolean _isRunning;
 
-    public ChordMessageSender(BlockingQueue<Message> outgoing) {
-        _outgoingMessages = outgoing;
+    private ChordObjectStorageImpl _nodeReference;
+    
+    public ChordMessageSender(ChordObjectStorageImpl node) {
+        _nodeReference = node;
         _isRunning = true;
     }
 
@@ -20,10 +20,10 @@ public class ChordMessageSender implements Runnable {
 
         while (_isRunning) {
 
-            while (!_outgoingMessages.isEmpty()) {
+            while (!_nodeReference.getOutgoingMessages().isEmpty()) {
                 Message msg = null;
                 try {
-                    msg = _outgoingMessages.take();
+                    msg = _nodeReference.getOutgoingMessages().take();
                 } catch (InterruptedException e1) {
                     e1.printStackTrace();
                 }

@@ -9,22 +9,12 @@ import services.ChordHelpers;
 
 public class ChordClient implements Runnable {
 
-    private BlockingQueue<Message> _incomingMessages;
-    private BlockingQueue<Message> _outgoingMessages;
-    private Map<Integer, ResponseHandler> _responseHandlers;
-    private Map<String, Object> _localStore;
     private ChordObjectStorageImpl _nodeReference;
     private boolean _isRunning;
     private Object _joiningLock = new Object();
 
-    public ChordClient(BlockingQueue<Message> incoming, BlockingQueue<Message> outgoing, 
-            Map<Integer, ResponseHandler> responseHandlers , ChordObjectStorageImpl node,
-            Map<String, Object> localStore) {
-        _incomingMessages = incoming;
-        _outgoingMessages = outgoing;
-        _responseHandlers = responseHandlers;
+    public ChordClient(ChordObjectStorageImpl node) {
         _nodeReference = node;
-        _localStore = localStore;
         _isRunning = true;
     }
 
@@ -103,7 +93,7 @@ public class ChordClient implements Runnable {
         if (iAmResponsibleForThisKey(message.key)) {
             //find the key in my localstore and send it back to
             //the origin which will trigger an event on the synchronous waiter
-            message.payload = _localStore.get(message.name);
+            message.payload = _nodeReference.getLocalStore().get(message.name);
             message.receiver = message.origin;
             message.type = Message.RESULT;
             message.sender = _nodeReference.getChordName();
@@ -120,7 +110,7 @@ public class ChordClient implements Runnable {
     private void handlePutObject(Message message) {
         if (iAmResponsibleForThisKey(message.key)) {
             //Input this key into my localstore
-            _localStore.put(message.name, message.payload);
+        	_nodeReference.getLocalStore().put(message.name, message.payload);
             //System.out.println("OBJECT: " + message.name + " STORED AT: " + _nodeReference);
         } else {
             //send it along to my successor
@@ -131,7 +121,7 @@ public class ChordClient implements Runnable {
     }
 
     private void handleResult(Message message) {
-        ResponseHandler handler = _responseHandlers.get(message.ID);
+        ResponseHandler handler = _nodeReference.getResponseHandlers().get(message.ID);
         handler.setMessage(message);
     }
     
@@ -154,7 +144,7 @@ public class ChordClient implements Runnable {
     private Message getMessageToHandle() {
         Message message = null;
         try {
-            message = _incomingMessages.poll(2, TimeUnit.SECONDS);
+            message = _nodeReference.getIncomingMessages().poll(2, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             System.err.println("We were interrupted while waiting for messages!");
         }
@@ -162,7 +152,7 @@ public class ChordClient implements Runnable {
     }
 
     private void enqueueMessage(Message message) {
-        _outgoingMessages.add(message);
+        _nodeReference.getOutgoingMessages().add(message);
     }
 
     public void stopClient() {

@@ -7,14 +7,14 @@ import services.*;
 
 public class ChordServer implements Runnable {
 
-    private BlockingQueue<Message> _incomingMessages;
+	private ChordObjectStorageImpl _nodeReference;
     private ServerSocket _serverSocket;
 
     private boolean _isRunning;
 
-    public ChordServer(BlockingQueue<Message> incoming, int port) {
-        _incomingMessages = incoming;
-        _serverSocket = ChordHelpers.getServerSocket(port);
+    public ChordServer(ChordObjectStorageImpl node) {
+    	_nodeReference = node;
+        _serverSocket = ChordHelpers.getServerSocket(node.getPort());
         _isRunning = true;
     }
 
@@ -24,7 +24,7 @@ public class ChordServer implements Runnable {
             Socket socket = waitForConnection();
             if (socket != null) {
                 Message msg = receiveMessage(socket);
-                _incomingMessages.add(msg);
+                _nodeReference.getIncomingMessages().add(msg);
                 closeConnection(socket);
                 Thread.yield();
             }
