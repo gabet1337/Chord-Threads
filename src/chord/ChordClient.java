@@ -32,13 +32,18 @@ public class ChordClient implements Runnable {
             if (message != null) {
 
                 if (_nodeReference._guestLock && (message.type != Message.SET_OBJECT && message.type != Message.LOCK && message.type != Message.SET_SUCCESSOR
-                        && message.type != Message.SET_PREDECESSOR)) {
+                        && message.type != Message.SET_PREDECESSOR && message.type != Message.UNLOCK)) {
                     _nodeReference._incomingMessages.add(message);
                     _nodeReference.debug("Will not process message " + message.type + " because im blocked on guestlock");
-                } else if (_nodeReference._selfLock && (message.type != Message.RESULT)) {
+                } else if (_nodeReference._selfLock && (message.type != Message.RESULT && message.type != Message.LOCK)) {
                     _nodeReference._incomingMessages.add(message);
                     _nodeReference.debug("Will not process message " + message.type + " because im blocked on selflock");
-                } else if (!_nodeReference._isConnected && (message.type != Message.RESULT)) {
+                } else if (_nodeReference._joinLock && (message.type != Message.LOCK && message.type != Message.SET_SUCCESSOR
+                        && message.type != Message.SET_PREDECESSOR && message.type != Message.UNLOCK && message.type != Message.MIGRATE
+                        && message.type != Message.GET_PREDECESSOR && message.type != Message.JOIN_LOCK && message.type != Message.JOIN_UNLOCK)) {
+                    _nodeReference._incomingMessages.add(message);
+                    _nodeReference.debug("Will not process message " + message.type + " because im blocked on join lock");
+                } else if (!_nodeReference._isConnected && !_nodeReference._isLeaving && (message.type != Message.RESULT)) {
                     _nodeReference._incomingMessages.add(message);
                     _nodeReference.debug("Will not process message " + message.type + " because i am currently blocked while joining.");
                 } else {
@@ -55,6 +60,8 @@ public class ChordClient implements Runnable {
                     case Message.MIGRATE : handleMigrate(message); break;
                     case Message.LOCK : handleLock(message); break;
                     case Message.UNLOCK : handleUnlock(message); break;
+                    case Message.JOIN_LOCK : handleJoinLock(message); break;
+                    case Message.JOIN_UNLOCK : handleJoinUnLock(message); break;
                     default : System.err.println("Invalid message received. Ignore it");
                     }
                 }
@@ -186,6 +193,25 @@ public class ChordClient implements Runnable {
 
     private void handleUnlock(Message message) {
         _nodeReference._guestLock = false;
+    }
+    
+    private void handleJoinLock(Message message) {
+        synchronized (_nodeReference._LOCK) {
+            if (_nodeReference._selfLock || _nodeReference._guestLock || _nodeReference._joinLock) {
+                message.payload = new Boolean(false);
+            } else {
+                _nodeReference._joinLock = true;
+                message.payload = new Boolean(true);
+            }
+            message.receiver = message.origin;
+            message.sender = _nodeReference.getChordName();
+            message.type = Message.RESULT;
+            _nodeReference.enqueueMessage(message);
+        }
+    }
+    
+    private void handleJoinUnLock(Message message) {
+        _nodeReference._joinLock = false;
     }
 
     private Message getMessageToHandle() {

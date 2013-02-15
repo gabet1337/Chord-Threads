@@ -27,6 +27,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
 
     public volatile boolean _selfLock = false;
     public volatile boolean _guestLock = false;
+    public volatile boolean _joinLock = false;
 
     public Object _LOCK = new Object();
 
@@ -127,7 +128,6 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
             message.sender = getChordName();
             message.payload = getChordName();
             message.type = Message.RESULT;
-            _chordClient.lock();
         } else {
             //forward to successor
             message.receiver = succ();
@@ -175,6 +175,11 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     public Object get(String name) {
+        
+        while (!_isConnected && !_isLeaving) {
+            debug("Wait until connected on GET " + name);
+        }
+        
         //lets first see if we're holding it.
         Object result = _localStore.get(name);
         if (result != null)
@@ -281,71 +286,153 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         //        enqueueMessage(setSuccessor);
         //        enqueueMessage(setPredecessor);
         //        enqueueMessage(migrate);
+        //        while (!_isConnected) {
+        //            while (_guestLock) {
+        //                try {
+        //                    Thread.sleep(100);
+        //                } catch (InterruptedException e) {
+        //                    e.printStackTrace();
+        //                }
+        //            }
+        //
+        //            _selfLock = true;
+        //
+        //            Message lookupSuccessor = new Message(Message.JOIN, _myKey, getChordName(),
+        //                    getChordName(), _connectedAt, null);
+        //            MessageHandler lookupSuccessorHandler = new MessageHandler();
+        //            _responseHandlers.put(lookupSuccessor.ID, lookupSuccessorHandler);
+        //            enqueueMessage(lookupSuccessor);
+        //            InetSocketAddress tmpSuccessor = (InetSocketAddress) lookupSuccessorHandler.getMessage().payload;
+        //            //At this point we have locked our successor and saved his address temporarily.
+        //
+        //            Message getPredecessor = new Message(Message.GET_PREDECESSOR, _myKey, getChordName(), getChordName(), tmpSuccessor, null);
+        //            MessageHandler getPredeccessorHandler = new MessageHandler();
+        //            _responseHandlers.put(getPredecessor.ID, getPredeccessorHandler);
+        //            enqueueMessage(getPredecessor);
+        //            InetSocketAddress tmpPredecessor = (InetSocketAddress) getPredeccessorHandler.getMessage().payload;
+        //            //At this point we need to make sure that we can take lock on tmpPredecessor.
+        //            Boolean OK = true;
+        //            if (!tmpPredecessor.equals(tmpSuccessor)) {
+        //                //we are the first node to join the creator and he is therefore locked already
+        //                Message lockPredecessor = new Message(Message.LOCK, _myKey, getChordName(), getChordName(), tmpPredecessor, null);
+        //                MessageHandler lockPredecessorHandler = new MessageHandler();
+        //                _responseHandlers.put(lockPredecessor.ID, lockPredecessorHandler);
+        //                enqueueMessage(lockPredecessor);
+        //                OK = (Boolean) lockPredecessorHandler.getMessage().payload;
+        //            }
+        //
+        //            if (OK) {
+        //                setSuccessor(tmpSuccessor);
+        //                setPredecessor(tmpPredecessor);
+        //                Message setSucc = new Message(Message.SET_SUCCESSOR, _myKey, getChordName(), getChordName(), pred(), getChordName());
+        //                Message setPred = new Message(Message.SET_PREDECESSOR, _myKey, getChordName(), getChordName(), succ(), getChordName());
+        //                Message unlockSucc = new Message(Message.UNLOCK, _myKey, getChordName(), getChordName(), succ(), null);
+        //                Message unlockPred = new Message(Message.UNLOCK, _myKey, getChordName(), getChordName(), pred(), null);
+        //                Message migrate = new Message(Message.MIGRATE, _myKey, getChordName(), getChordName(), succ(), pred());
+        //                enqueueMessage(setSucc);
+        //                enqueueMessage(setPred);
+        //                enqueueMessage(unlockPred);
+        //                enqueueMessage(unlockSucc);
+        //                enqueueMessage(migrate);
+        //
+        //                //leave loop
+        //                _isConnected = true;
+        //                continue;
+        //            } else {
+        //                //we couldn't require locks, so we must unlock tmp successor and start over
+        //                Message unlockSucc = new Message(Message.UNLOCK, _myKey, getChordName(), getChordName(), tmpSuccessor, null);
+        //                enqueueMessage(unlockSucc);
+        //                _selfLock = false;
+        //                try {
+        //                    Thread.sleep(200*new Random().nextInt(5)+1);
+        //                } catch (InterruptedException e) {
+        //                    e.printStackTrace();
+        //                }
+        //            }
+        //        }
+
         while (!_isConnected) {
-            while (_guestLock) {
+            //Try to acquire selfLock
+            while (_guestLock || _joinLock || _selfLock) {
                 try {
                     Thread.sleep(100);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
-
             _selfLock = true;
 
-            Message lookupSuccessor = new Message(Message.JOIN, _myKey, getChordName(),
-                    getChordName(), _connectedAt, null);
-            MessageHandler lookupSuccessorHandler = new MessageHandler();
-            _responseHandlers.put(lookupSuccessor.ID, lookupSuccessorHandler);
-            enqueueMessage(lookupSuccessor);
-            InetSocketAddress tmpSuccessor = (InetSocketAddress) lookupSuccessorHandler.getMessage().payload;
-            //At this point we have locked our successor and saved his address temporarily.
+            //Lets send a join request to our known peer
+            Message succMsg = new Message(Message.JOIN, _myKey, getChordName(), getChordName(), _connectedAt, null);
+            MessageHandler succHandler = new MessageHandler();
+            _responseHandlers.put(succMsg.ID, succHandler);
+            enqueueMessage(succMsg);
+            InetSocketAddress tmpSuccessor = (InetSocketAddress) succHandler.getMessage().payload;
+            debug("Have our tmp successor");
+            //Lets try to lock him.
+            Message lockTmpSucc = new Message(Message.JOIN_LOCK, _myKey, getChordName(), getChordName(), tmpSuccessor, null);
+            MessageHandler lockTmpSuccHandler = new MessageHandler();
+            _responseHandlers.put(lockTmpSucc.ID, lockTmpSuccHandler);
+            enqueueMessage(lockTmpSucc);
+            Boolean lockTmpSuccAnswer = (Boolean) lockTmpSuccHandler.getMessage().payload;
+            if (lockTmpSuccAnswer) {
+                debug("have locked tmp successor");
+                //we have now acquired successors locks. Lets get his predecessor and lock him
+                Message predMsg = new Message(Message.GET_PREDECESSOR, _myKey, getChordName(), getChordName(), tmpSuccessor, null);
+                MessageHandler predHandler = new MessageHandler();
+                _responseHandlers.put(predMsg.ID, predHandler);
+                enqueueMessage(predMsg);
+                InetSocketAddress tmpPredecessor = (InetSocketAddress) predHandler.getMessage().payload;
+                //Lets try to lock this guy.
+                Message lockTmpPred = new Message(Message.JOIN_LOCK, _myKey, getChordName(), getChordName(), tmpPredecessor, null);
+                MessageHandler lockTmpPredHandler = new MessageHandler();
+                _responseHandlers.put(lockTmpPred.ID, lockTmpPredHandler);
+                enqueueMessage(lockTmpPred);
+                Boolean lockTmpPredAnswer = (Boolean) lockTmpPredHandler.getMessage().payload;
+                if (lockTmpPredAnswer || tmpSuccessor.equals(tmpPredecessor)) {
+                    debug("Have both locks");
+                    //We have both locks and we are safe to join in between them!
+                    Message setSucc = new Message(Message.SET_SUCCESSOR, _myKey, getChordName(), getChordName(), tmpPredecessor, getChordName());
+                    Message setPred = new Message(Message.SET_PREDECESSOR, _myKey, getChordName(), getChordName(), tmpSuccessor, getChordName());
+                    enqueueMessage(setPred);
+                    enqueueMessage(setSucc);
+                    setSuccessor(tmpSuccessor);
+                    setPredecessor(tmpPredecessor);
+                    Message migrate = new Message(Message.MIGRATE, _myKey, getChordName(), getChordName(), succ(), pred());
+                    enqueueMessage(migrate);
+                                        
+                    Message unlockSucc = new Message(Message.JOIN_UNLOCK, _myKey, getChordName(), getChordName(), succ(), null);
+                    Message unlockPred = new Message(Message.JOIN_UNLOCK, _myKey, getChordName(), getChordName(), pred(), null);
+                    enqueueMessage(unlockPred);
+                    enqueueMessage(unlockSucc);
 
-            Message getPredecessor = new Message(Message.GET_PREDECESSOR, _myKey, getChordName(), getChordName(), tmpSuccessor, null);
-            MessageHandler getPredeccessorHandler = new MessageHandler();
-            _responseHandlers.put(getPredecessor.ID, getPredeccessorHandler);
-            enqueueMessage(getPredecessor);
-            InetSocketAddress tmpPredecessor = (InetSocketAddress) getPredeccessorHandler.getMessage().payload;
-            //At this point we need to make sure that we can take lock on tmpPredecessor.
-            Boolean OK = true;
-            if (!tmpPredecessor.equals(tmpSuccessor)) {
-                //we are the first node to join the creator and he is therefore locked already
-                Message lockPredecessor = new Message(Message.LOCK, _myKey, getChordName(), getChordName(), tmpPredecessor, null);
-                MessageHandler lockPredecessorHandler = new MessageHandler();
-                _responseHandlers.put(lockPredecessor.ID, lockPredecessorHandler);
-                enqueueMessage(lockPredecessor);
-                OK = (Boolean) lockPredecessorHandler.getMessage().payload;
-            }
+                    _selfLock = false;
+                    _isConnected = true;
 
-            if (OK) {
-                setSuccessor(tmpSuccessor);
-                setPredecessor(tmpPredecessor);
-                Message setSucc = new Message(Message.SET_SUCCESSOR, _myKey, getChordName(), getChordName(), pred(), getChordName());
-                Message setPred = new Message(Message.SET_PREDECESSOR, _myKey, getChordName(), getChordName(), succ(), getChordName());
-                Message unlockSucc = new Message(Message.UNLOCK, _myKey, getChordName(), getChordName(), succ(), null);
-                Message unlockPred = new Message(Message.UNLOCK, _myKey, getChordName(), getChordName(), pred(), null);
-                Message migrate = new Message(Message.MIGRATE, _myKey, getChordName(), getChordName(), succ(), pred());
-                enqueueMessage(setSucc);
-                enqueueMessage(setPred);
-                enqueueMessage(unlockPred);
-                enqueueMessage(unlockSucc);
-                enqueueMessage(migrate);
-
-                //leave loop
-                _isConnected = true;
-                continue;
+                } else {
+                    //unlock self & successor + random sleep
+                    Message unlockSucc = new Message(Message.JOIN_UNLOCK, _myKey, getChordName(), getChordName(), tmpSuccessor, null);
+                    _selfLock = false;
+                    enqueueMessage(unlockSucc);
+                    try {
+                        Thread.sleep(new Random().nextInt(5) * 100 + 100);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
             } else {
-                //we couldn't require locks, so we must unlock tmp successor and start over
-                Message unlockSucc = new Message(Message.UNLOCK, _myKey, getChordName(), getChordName(), tmpSuccessor, null);
-                enqueueMessage(unlockSucc);
                 _selfLock = false;
                 try {
-                    Thread.sleep(200*new Random().nextInt(5)+1);
+                    Thread.sleep(new Random().nextInt(5) * 100 + 100);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
         }
+
     }
+
+
 
     private void leaveTheChordRing() {
 
@@ -375,13 +462,15 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         //        _chordMessenger.stopSender();
 
 
-        if (getChordName().equals(succ())) {
-            System.exit(1);
-        }
+        
         boolean hasResult = false;
         while (!hasResult) {
+            
+            if (getChordName().equals(succ())) {
+                System.exit(1);
+            }
 
-            while (_guestLock) {
+            while (_guestLock || _joinLock || _selfLock) {
                 try {
                     Thread.sleep(100);
                 } catch (InterruptedException e) {
@@ -441,10 +530,20 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
                     Message unlockSucc = new Message(Message.UNLOCK, _myKey, getChordName(), getChordName(), succ(), null);
                     enqueueMessage(unlockSucc);
                     _selfLock = false;
+                    try {
+                        Thread.sleep(new Random().nextInt(5) * 100 + 100);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
             } else {
                 //unlock self
                 _selfLock = false;
+                try {
+                    Thread.sleep(new Random().nextInt(5) * 100 + 100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
         }
         debug("we have left the building");

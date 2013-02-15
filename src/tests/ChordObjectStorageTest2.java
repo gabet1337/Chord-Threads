@@ -2,6 +2,7 @@ package tests;
 
 import chord.ChordObjectStorageImpl;
 
+
 /**
  * Tests that the group can form properly when peers get join requests
  * before they are connected themeselves. Also tests that objects can
@@ -39,7 +40,7 @@ public class ChordObjectStorageTest2 {
 	} catch (InterruptedException __) {
 	}
 	
-	boolean OK = true;	
+	boolean OK = true;
 
 	for (int j=1; j<100; j++) {
 	    String name = "Name " + j;
@@ -65,9 +66,9 @@ public class ChordObjectStorageTest2 {
 	if (OK) System.err.println("SUCCESS!");
 	else System.err.println("Try again!");
 
-	//for (int i=0; i<10; i++) {
-	//    server[i].leaveGroup();
-	//}
+	for (int i=0; i<10; i++) {
+	    server[i].leaveGroup();
+	}
 
 
     }

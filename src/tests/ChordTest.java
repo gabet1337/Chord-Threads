@@ -84,7 +84,6 @@ public class ChordTest {
         servers.add(new ChordObjectStorageImpl(-1));
         servers.get(0).createGroup(40000);
         
-
         while (!servers.get(0).isConnected()) {
             Thread.sleep(100);
         }

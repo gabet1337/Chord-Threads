@@ -20,6 +20,8 @@ public class Message implements Serializable {
     public static final int MIGRATE = 10;
     public static final int LOCK = 11;
     public static final int UNLOCK = 12;
+    public static final int JOIN_LOCK = 13;
+    public static final int JOIN_UNLOCK = 14;
 
     public int ID = new Random().nextInt();
 
@@ -73,6 +75,8 @@ public class Message implements Serializable {
         case MIGRATE : return "MIGRATE";
         case LOCK : return "LOCK";
         case UNLOCK : return "UNLOCK";
+        case JOIN_LOCK : return "JOIN_JOIN";
+        case JOIN_UNLOCK : return "JOIN_UNLOCK";
         default: return "ERROR";
         }
     }
