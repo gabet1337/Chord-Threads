@@ -32,15 +32,15 @@ public class ChordClient implements Runnable {
             if (message != null) {
 
                 if (_nodeReference._guestLock && (message.type != Message.SET_OBJECT && message.type != Message.LOCK && message.type != Message.SET_SUCCESSOR
-                        && message.type != Message.SET_PREDECESSOR)) {
+                        && message.type != Message.SET_PREDECESSOR && message.type != Message.UNLOCK)) {
                     _nodeReference._incomingMessages.add(message);
-                    _nodeReference.debug("Will not process message " + message.type + " because im blocked on guestlock");
-                } else if (_nodeReference._selfLock && (message.type != Message.RESULT)) {
+                    _nodeReference.debug("Will not process message " + message.getTypeString() + " because im blocked on guestlock");
+                } else if (_nodeReference._selfLock && (message.type != Message.RESULT && message.type != Message.LOCK)) {
                     _nodeReference._incomingMessages.add(message);
-                    _nodeReference.debug("Will not process message " + message.type + " because im blocked on selflock");
-                } else if (!_nodeReference._isConnected && (message.type != Message.RESULT)) {
+                    _nodeReference.debug("Will not process message " + message.getTypeString() + " because im blocked on selflock");
+                } else if (!_nodeReference._isConnected && !_nodeReference._isLeaving && (message.type != Message.RESULT)) {
                     _nodeReference._incomingMessages.add(message);
-                    _nodeReference.debug("Will not process message " + message.type + " because i am currently blocked while joining.");
+                    _nodeReference.debug("Will not process message " + message.getTypeString() + " because i am currently blocked while joining.");
                 } else {
                     switch (message.type) {
                     case Message.JOIN : handleJoin(message); break;

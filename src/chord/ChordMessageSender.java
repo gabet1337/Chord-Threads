@@ -29,7 +29,7 @@ public class ChordMessageSender implements Runnable {
                     } catch (InterruptedException e1) {
                         e1.printStackTrace();
                     }
-                    _nodeReference.debug("sending message " + msg.type + " to " + msg.receiver.getPort());
+                    _nodeReference.debug("sending message " + msg.getTypeString() + " to " + msg.receiver.getPort());
                     Socket s = getSocket(msg.receiver);
                     sendMessage(s, msg);
                     //                System.out.println("Sent message: " + msg);
@@ -54,6 +54,7 @@ public class ChordMessageSender implements Runnable {
             ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
             oos.writeObject(msg);
             oos.flush();
+            oos.close();
         } catch (IOException e) {
             e.printStackTrace();
         }

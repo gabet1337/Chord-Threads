@@ -8,7 +8,7 @@ import interfaces.*;
 
 public class ChordObjectStorageImpl extends DDistThread implements ChordObjectStorage {
 
-    private boolean _isJoining;
+    private volatile boolean _isJoining;
     public volatile boolean _isLeaving = false;
     public volatile boolean _isConnected = false;
     private boolean _wasConnected;
@@ -19,16 +19,16 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     private InetSocketAddress _pred;
     private InetSocketAddress _connectedAt;
 
-    private ChordClient _chordClient;
-    private ChordServer _chordServer;
-    private ChordMessageSender _chordMessenger;
+    private volatile ChordClient _chordClient;
+    private volatile ChordServer _chordServer;
+    private volatile ChordMessageSender _chordMessenger;
 
-    private Object _connectedLock = new Object();
+    private volatile Object _connectedLock = new Object();
 
     public volatile boolean _selfLock = false;
     public volatile boolean _guestLock = false;
 
-    public Object _LOCK = new Object();
+    public volatile Object _LOCK = new Object();
 
     public volatile BlockingQueue<Message> _incomingMessages = new LinkedBlockingQueue<Message>();
     public volatile BlockingQueue<Message> _outgoingMessages = new LinkedBlockingQueue<Message>();
@@ -101,7 +101,22 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
             _isLeaving = true;
             _isConnected = false;
         }
-
+        
+        try {
+			Thread.sleep(200);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+        
+        while (!_outgoingMessages.isEmpty()) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        
     }
 
     public InetSocketAddress succ() {
@@ -157,7 +172,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
 
     public void debug(String message) {
         //if (getChordName().getPort() == 40000)
-        System.out.println("" + getChordName().getPort() +  ": " + message);
+        //System.out.println("" + getChordName().getPort() +  ": " + message);
     }
 
     public void put(String name, Object object) {
@@ -290,7 +305,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
                 }
             }
 
-            _selfLock = true;
+            //_selfLock = true;
 
             Message lookupSuccessor = new Message(Message.JOIN, _myKey, getChordName(),
                     getChordName(), _connectedAt, null);
@@ -374,13 +389,15 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         //        }
         //        _chordMessenger.stopSender();
 
-
-        if (getChordName().equals(succ())) {
-            System.exit(1);
-        }
+    	Random generator = new Random();
+        
         boolean hasResult = false;
         while (!hasResult) {
-
+       	
+        	if (getChordName().equals(succ())) {
+                System.exit(1);
+            }
+        	
             while (_guestLock) {
                 try {
                     Thread.sleep(100);
@@ -445,7 +462,16 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
             } else {
                 //unlock self
                 _selfLock = false;
+                
+                try {
+    				Thread.sleep(generator.nextInt(2000));
+    			} catch (InterruptedException e) {
+    				// TODO Auto-generated catch block
+    				e.printStackTrace();
+    			}
+                
             }
+            
         }
         debug("we have left the building");
 

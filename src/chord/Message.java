@@ -7,7 +7,7 @@ import java.util.Random;
 public class Message implements Serializable {
 
     private static final long serialVersionUID = 6244711900508423510L;
-
+    
     public static final int JOIN = 1;
     public static final int LOOKUP = 2;
     public static final int SET_PREDECESSOR = 3;
@@ -59,7 +59,7 @@ public class Message implements Serializable {
         return result;
     }
 
-    private String getTypeString() {
+    public String getTypeString() {
         switch (type) {
         case JOIN : return "JOIN";
         case LOOKUP : return "LOOKUP";
