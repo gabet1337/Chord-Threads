@@ -25,6 +25,11 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
 
     private Object _connectedLock = new Object();
 
+    public volatile boolean _selfLock = false;
+    public volatile boolean _guestLock = false;
+
+    public Object _LOCK = new Object();
+
     public volatile BlockingQueue<Message> _incomingMessages = new LinkedBlockingQueue<Message>();
     public volatile BlockingQueue<Message> _outgoingMessages = new LinkedBlockingQueue<Message>();
 
@@ -69,7 +74,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
             } 
             _wasConnected = true;
         }
-        
+
         _isJoining = true;
         _port = port;
         _connectedAt = knownPeer;
@@ -93,7 +98,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     public void leaveGroup() {
         debug("Shutting down!");
         synchronized(_connectedLock) {
-        	_isLeaving = true;
+            _isLeaving = true;
             _isConnected = false;
         }
 
@@ -151,16 +156,16 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     public void debug(String message) {
-    	//if (getChordName().getPort() == 40000)
-    	//	System.out.println("" + getChordName().getPort() +  ": " + message);
+        //if (getChordName().getPort() == 40000)
+        System.out.println("" + getChordName().getPort() +  ": " + message);
     }
 
     public void put(String name, Object object) {
-    	
-    	 while (!_isConnected && !_isLeaving) {
-    		 debug("Will no do that until i am connected");
-    	 }
-    	
+
+        while (!_isConnected && !_isLeaving) {
+            debug("Will no do that until i am connected");
+        }
+
         int key = ChordHelpers.keyOfObject(name);
         Message message = new Message(Message.SET_OBJECT, key, getChordName(),
                 getChordName(), succ(), object);
@@ -197,23 +202,23 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     private Thread _t_server;
     private Thread _t_client;
     private Thread _t_messenger;
-    
+
     public void init() {
 
         _chordServer = new ChordServer(_incomingMessages, _port, this);
         _chordClient = new ChordClient(this);
         _chordMessenger = new ChordMessageSender(_outgoingMessages, this);
-        
+
         if (_isJoining) _chordClient.lock();
 
         _t_server = new Thread(_chordServer);
         _t_client = new Thread(_chordClient);
         _t_messenger = new Thread(_chordMessenger);
-        
+
     }
 
     public void run() {
-    	debug("Starting");
+        debug("Starting");
 
         _t_server.start();
         _t_client.start();
@@ -226,8 +231,6 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
             _pred = _myName;
             _isConnected = true;
         }
-
-        _chordClient.unlock();
 
         while (_isConnected) {
             try {
@@ -279,6 +282,16 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         //        enqueueMessage(setPredecessor);
         //        enqueueMessage(migrate);
         while (!_isConnected) {
+            while (_guestLock) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            _selfLock = true;
+
             Message lookupSuccessor = new Message(Message.JOIN, _myKey, getChordName(),
                     getChordName(), _connectedAt, null);
             MessageHandler lookupSuccessorHandler = new MessageHandler();
@@ -324,6 +337,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
                 //we couldn't require locks, so we must unlock tmp successor and start over
                 Message unlockSucc = new Message(Message.UNLOCK, _myKey, getChordName(), getChordName(), tmpSuccessor, null);
                 enqueueMessage(unlockSucc);
+                _selfLock = false;
                 try {
                     Thread.sleep(200*new Random().nextInt(5)+1);
                 } catch (InterruptedException e) {
@@ -335,30 +349,106 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
 
     private void leaveTheChordRing() {
 
-        debug("leaving the chord ring with the following localStore: " + _localStore.toString());
+        //        debug("leaving the chord ring with the following localStore: " + _localStore.toString());
+        //
+        //        Message msg1 = new Message(Message.SET_PREDECESSOR, _myKey, getChordName(),
+        //                getChordName(), succ(), pred());
+        //        Message msg2 = new Message(Message.SET_SUCCESSOR, _myKey, getChordName(),
+        //                getChordName(), pred(), succ());
+        //        enqueueMessage(msg1);
+        //        enqueueMessage(msg2);
+        //
+        //        for (String s : _localStore.keySet()) {
+        //            put(s, _localStore.get(s));
+        //        }
+        //
+        //        _chordServer.stopServer();
+        //        _chordClient.stopClient();
+        //        //lets wait until all messages are sent!
+        //        while (!_outgoingMessages.isEmpty()) {
+        //            try {
+        //                Thread.sleep(100);
+        //            } catch (InterruptedException e) {
+        //                e.printStackTrace();
+        //            }
+        //        }
+        //        _chordMessenger.stopSender();
 
-        Message msg1 = new Message(Message.SET_PREDECESSOR, _myKey, getChordName(),
-                getChordName(), succ(), pred());
-        Message msg2 = new Message(Message.SET_SUCCESSOR, _myKey, getChordName(),
-                getChordName(), pred(), succ());
-        enqueueMessage(msg1);
-        enqueueMessage(msg2);
 
-        for (String s : _localStore.keySet()) {
-            put(s, _localStore.get(s));
+        if (getChordName().equals(succ())) {
+            System.exit(1);
         }
+        boolean hasResult = false;
+        while (!hasResult) {
 
-        _chordServer.stopServer();
-        _chordClient.stopClient();
-        //lets wait until all messages are sent!
-        while (!_outgoingMessages.isEmpty()) {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            while (_guestLock) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            _selfLock = true;
+
+            Message lockSucc = new Message(Message.LOCK, _myKey, getChordName(), getChordName(), succ(), null);
+            MessageHandler lockSuccHandler = new MessageHandler();
+            _responseHandlers.put(lockSucc.ID, lockSuccHandler);
+            enqueueMessage(lockSucc);
+            Boolean lockSuccAnswer = (Boolean) lockSuccHandler.getMessage().payload;
+            if (lockSuccAnswer) {
+                debug("I now have lock for successor");
+                Message lockPred = new Message(Message.LOCK, _myKey, getChordName(), getChordName(), pred(), null);
+                MessageHandler lockPredHandler = new MessageHandler();
+                _responseHandlers.put(lockPred.ID, lockPredHandler);
+                enqueueMessage(lockPred);
+                Boolean lockPredAnswer = (Boolean) lockPredHandler.getMessage().payload;
+                if (lockPredAnswer || succ().equals(pred())) {
+                    debug("We now have both locks");
+                    //we have both locks
+
+                    //All objects are sent and we are ready to update links
+                    Message setPred = new Message(Message.SET_PREDECESSOR, _myKey, getChordName(), getChordName(), succ(), pred());
+                    Message setSucc = new Message(Message.SET_SUCCESSOR, _myKey, getChordName(), getChordName(), pred(), succ());
+                    enqueueMessage(setSucc);
+                    enqueueMessage(setPred);
+                    debug("Links are updated");
+                    //send my objects
+                    for (String s : _localStore.keySet()) {
+                        put(s, _localStore.get(s));
+                    }
+
+                    //wait until send
+                    while (!_outgoingMessages.isEmpty()) {
+                        try {
+                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    debug("objects are sent");
+
+                    Message unlockSuccDone = new Message(Message.UNLOCK, _myKey, getChordName(), getChordName(), succ(), null);
+                    Message unlockPredDone = new Message(Message.UNLOCK, _myKey, getChordName(), getChordName(), pred(), null);
+
+                    enqueueMessage(unlockPredDone);
+                    enqueueMessage(unlockSuccDone);
+
+                    hasResult = true;
+
+                } else {
+                    //unlock succ & self
+                    Message unlockSucc = new Message(Message.UNLOCK, _myKey, getChordName(), getChordName(), succ(), null);
+                    enqueueMessage(unlockSucc);
+                    _selfLock = false;
+                }
+            } else {
+                //unlock self
+                _selfLock = false;
             }
         }
-        _chordMessenger.stopSender();
+        debug("we have left the building");
+
     }
 
     public String getGraphViz() {

@@ -13,7 +13,7 @@ public class ChordClient implements Runnable {
     private ChordObjectStorageImpl _nodeReference;
     private boolean _isRunning;
     private Object _joiningLock = new Object();
-    
+
     private boolean _deferMessages = false;
 
     public ChordClient(ChordObjectStorageImpl node) {
@@ -23,7 +23,7 @@ public class ChordClient implements Runnable {
     }
 
     Random generator = new Random();
-    
+
     public void run() {
 
         while (_isRunning) {
@@ -31,7 +31,14 @@ public class ChordClient implements Runnable {
             Message message = getMessageToHandle();
             if (message != null) {
 
-                if (!_nodeReference._isConnected && (message.type != Message.RESULT)) {
+                if (_nodeReference._guestLock && (message.type != Message.SET_OBJECT && message.type != Message.LOCK && message.type != Message.SET_SUCCESSOR
+                        && message.type != Message.SET_PREDECESSOR)) {
+                    _nodeReference._incomingMessages.add(message);
+                    _nodeReference.debug("Will not process message " + message.type + " because im blocked on guestlock");
+                } else if (_nodeReference._selfLock && (message.type != Message.RESULT)) {
+                    _nodeReference._incomingMessages.add(message);
+                    _nodeReference.debug("Will not process message " + message.type + " because im blocked on selflock");
+                } else if (!_nodeReference._isConnected && (message.type != Message.RESULT)) {
                     _nodeReference._incomingMessages.add(message);
                     _nodeReference.debug("Will not process message " + message.type + " because i am currently blocked while joining.");
                 } else {
@@ -157,16 +164,28 @@ public class ChordClient implements Runnable {
     }
 
     private void handleLock(Message message) {
-        boolean status = this.lock();
-        message.payload = new Boolean(status);
-        message.receiver = message.origin;
-        message.sender = _nodeReference.getChordName();
-        message.type = Message.RESULT;
-        _nodeReference.enqueueMessage(message);
+        //        boolean status = this.lock();
+        //        message.payload = new Boolean(status);
+        //        message.receiver = message.origin;
+        //        message.sender = _nodeReference.getChordName();
+        //        message.type = Message.RESULT;
+        //        _nodeReference.enqueueMessage(message);
+        synchronized (_nodeReference._LOCK) {
+            if (_nodeReference._selfLock || _nodeReference._guestLock) {
+                message.payload = new Boolean(false);
+            } else {
+                _nodeReference._guestLock = true;
+                message.payload = new Boolean(true);
+            }
+            message.receiver = message.origin;
+            message.sender = _nodeReference.getChordName();
+            message.type = Message.RESULT;
+            _nodeReference.enqueueMessage(message);
+        }
     }
 
     private void handleUnlock(Message message) {
-        this.unlock();
+        _nodeReference._guestLock = false;
     }
 
     private Message getMessageToHandle() {
@@ -190,7 +209,7 @@ public class ChordClient implements Runnable {
         return ChordHelpers.inBetween(low, high, key);
     }
 
-    
+
     public synchronized boolean lock() {
         if (_deferMessages) {
             return false;
