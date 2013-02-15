@@ -33,7 +33,6 @@ public class ChordClient implements Runnable {
 
                 if (!_nodeReference._isConnected && (message.type != Message.RESULT)) {
                     _nodeReference._incomingMessages.add(message);
-                    //System.out.println("Farvel");
                     _nodeReference.debug("Will not process message " + message.type + " because i am currently blocked while joining.");
                 } else {
                     switch (message.type) {

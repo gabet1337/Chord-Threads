@@ -9,6 +9,7 @@ import interfaces.*;
 public class ChordObjectStorageImpl extends DDistThread implements ChordObjectStorage {
 
     private boolean _isJoining;
+    public volatile boolean _isLeaving = false;
     public volatile boolean _isConnected = false;
     private boolean _wasConnected;
     private int _port;
@@ -92,6 +93,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     public void leaveGroup() {
         debug("Shutting down!");
         synchronized(_connectedLock) {
+        	_isLeaving = true;
             _isConnected = false;
         }
 
@@ -155,8 +157,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
 
     public void put(String name, Object object) {
     	
-    	 while (!_isConnected) {
-    		 //System.out.println("Hej");
+    	 while (!_isConnected && !_isLeaving) {
     		 debug("Will no do that until i am connected");
     	 }
     	
