@@ -3,6 +3,7 @@ package chord;
 import interfaces.*;
 import java.net.*;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.*;
 
 import services.ChordHelpers;
@@ -21,6 +22,8 @@ public class ChordClient implements Runnable {
         _isRunning = true;
     }
 
+    Random generator = new Random();
+    
     public void run() {
 
         while (_isRunning) {
@@ -30,6 +33,8 @@ public class ChordClient implements Runnable {
 
                 if (!_nodeReference._isConnected && (message.type != Message.RESULT)) {
                     _nodeReference._incomingMessages.add(message);
+                    //System.out.println("Farvel");
+                    _nodeReference.debug("Will not process message " + message.type + " because i am currently blocked while joining.");
                 } else {
                     switch (message.type) {
                     case Message.JOIN : handleJoin(message); break;

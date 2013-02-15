@@ -9,7 +9,7 @@ import interfaces.*;
 public class ChordObjectStorageImpl extends DDistThread implements ChordObjectStorage {
 
     private boolean _isJoining;
-    public boolean _isConnected = false;
+    public volatile boolean _isConnected = false;
     private boolean _wasConnected;
     private int _port;
     private int _myKey;
@@ -56,6 +56,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         _port = port;
         _myName = ChordHelpers.getMyName(port);
         _myKey = ChordHelpers.keyOfObject(_myName);
+        init();
         start();
     }
 
@@ -67,15 +68,14 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
             } 
             _wasConnected = true;
         }
-
+        
         _isJoining = true;
         _port = port;
         _connectedAt = knownPeer;
         _myName = ChordHelpers.getMyName(port);
         _myKey = ChordHelpers.keyOfObject(_myName);
 
-
-
+        init();
         start();
     }
 
@@ -149,10 +149,17 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     public void debug(String message) {
-        System.out.println("" + getChordName().getPort() +  ": " + message);
+    	//if (getChordName().getPort() == 40000)
+    	//	System.out.println("" + getChordName().getPort() +  ": " + message);
     }
 
     public void put(String name, Object object) {
+    	
+    	 while (!_isConnected) {
+    		 //System.out.println("Hej");
+    		 debug("Will no do that until i am connected");
+    	 }
+    	
         int key = ChordHelpers.keyOfObject(name);
         Message message = new Message(Message.SET_OBJECT, key, getChordName(),
                 getChordName(), succ(), object);
@@ -186,26 +193,30 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         return result;
     }
 
+    private Thread _t_server;
+    private Thread _t_client;
+    private Thread _t_messenger;
+    
     public void init() {
 
         _chordServer = new ChordServer(_incomingMessages, _port, this);
         _chordClient = new ChordClient(this);
         _chordMessenger = new ChordMessageSender(_outgoingMessages, this);
-        _chordClient.lock();
+        
+        if (_isJoining) _chordClient.lock();
+
+        _t_server = new Thread(_chordServer);
+        _t_client = new Thread(_chordClient);
+        _t_messenger = new Thread(_chordMessenger);
+        
     }
 
     public void run() {
-        System.out.println("Starting");
+    	debug("Starting");
 
-        init();
-
-        Thread server = new Thread(_chordServer);
-        Thread client = new Thread(_chordClient);
-        Thread messenger = new Thread(_chordMessenger);
-
-        server.start();
-        client.start();
-        messenger.start();
+        _t_server.start();
+        _t_client.start();
+        _t_messenger.start();
 
         if (_isJoining) {
             joinTheChordRing();
@@ -232,9 +243,9 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         leaveTheChordRing();
 
         try {
-            server.join();
-            client.join();
-            messenger.join();
+            _t_server.join();
+            _t_client.join();
+            _t_messenger.join();
         } catch (InterruptedException e) {
 
         }
@@ -242,7 +253,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
     }
 
     private void joinTheChordRing() {
-        System.out.println("JOINING");
+        debug("joining");
         //        Message getSuccessor = new Message(Message.JOIN, _myKey, getChordName(), getChordName(),
         //                _connectedAt, null);
         //        MessageHandler succHandler = new MessageHandler();
