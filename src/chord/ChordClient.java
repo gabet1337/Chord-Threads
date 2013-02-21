@@ -132,6 +132,7 @@ public class ChordClient implements Runnable {
             //Input this key into my localstore
             _nodeReference._localStore.put(message.name, message.payload);
             _nodeReference.debug("I just added " + message.name + " to my localStore. By the way; my localStore now contains: " + _nodeReference._localStore.toString());
+            System.out.println("I just added " + message.name + " to my localStore. By the way; my localStore now contains: " + _nodeReference._localStore.toString());
             //System.out.println("OBJECT: " + message.name + " STORED AT: " + _nodeReference);
         } else {
             //send it along to my successor

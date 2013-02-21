@@ -44,7 +44,7 @@ public class ChordObjectStorageImpl extends DDistThread implements ChordObjectSt
         _isConnected = false;
         _wasConnected = false;
     }
-
+    
     public boolean getIsJoining() {
         return _isJoining;
     }
